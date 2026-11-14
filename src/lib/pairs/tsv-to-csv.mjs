@@ -1,0 +1,50 @@
+export default {
+  slug: 'tsv-to-csv',
+  title: 'TSV to CSV Converter: Tab-Separated to Comma-Separated',
+  description: 'Convert TSV to CSV in your browser. Values are copied exactly; fields with commas, quotes or line breaks are quoted as RFC 4180 describes. No upload.',
+  h1: 'TSV to CSV Converter',
+  lede: 'Paste tab-separated text (for example cells copied from a spreadsheet) or open a .tsv file, and get comma-separated CSV with the same values.',
+  blurb: 'Copies every value exactly and adds the quoting CSV needs.',
+  samples: [
+    { label: 'Copied cells', text: 'name\tcity\tnote\tamount\nAnn Smith\tBoston, MA\tPrefers email\t1,200.50\nBruno Díaz\tMadrid\tSays "hola"\t35\nZoë Martin\tParis\t\t0\n' },
+    { label: 'Gene table', text: 'gene_id\tsymbol\tchromosome\tdescription\nENSG00000141510\tTP53\t17\ttumor protein p53\nENSG00000012048\tBRCA1\t17\tBRCA1 DNA repair associated\n' },
+  ],
+  rulesIntro: 'Both formats are flat tables of text, so the conversion only changes how fields are separated and quoted. No value is reinterpreted.',
+  rules: [
+    ['A tab between fields', 'A comma (or the delimiter you choose)'],
+    ['A field with a comma (Boston, MA)', 'The field in double quotes: "Boston, MA"'],
+    ['A field with a double quote (Says "hola")', 'Quoted, with the inner quotes doubled: "Says ""hola"""'],
+    ['A field already quoted in the TSV', 'Read as one field, quotes removed, then quoted again if CSV needs it'],
+    ['An empty field (two tabs in a row)', 'An empty field (two commas in a row)'],
+    ['Numbers, dates, 0012', 'Copied as text, character for character'],
+    ['A UTF-8 byte order mark at the start', 'Removed (add one back with the BOM option)'],
+    ['Blank lines', 'Skipped'],
+  ],
+  example: {
+    input: 'sku\tlabel\tprice\nA-1\tLamp, desk\t39.50\nA-2\tBulb "warm"\t3.25\n',
+    text: 'Only the two fields that contain a comma or quotes are wrapped in quotes. 39.50 keeps its trailing zero because nothing is converted to a number.',
+  },
+  optionDocs: [
+    { option: 'outDelimiter', text: 'The separator for the CSV. Spreadsheets in many European locales expect a semicolon, because they use the comma for decimals; a pipe is common in data exchanged between databases.', input: 'item\tprice\nTea\t3,20\n', variants: [['Comma', {}], ['Semicolon', { outDelimiter: 'semicolon' }]] },
+    { option: 'bom', text: 'Prefixes the file with an invisible byte order mark. Excel for Windows needs it to show characters such as ø, é or 東 correctly when the CSV is opened by double-clicking.', input: 'city\nTromsø\n', variants: [['Off', {}], ['On', { bom: true }]] },
+    { option: 'lineEnding', text: 'CRLF is the RFC 4180 line ending and what Windows programs write. LF suits scripts on Linux and macOS. Line breaks inside quoted fields are left as they are.', input: 'a\tb\n1\t2\n', variants: [['CRLF', {}], ['LF', { lineEnding: 'lf' }]] },
+  ],
+  errors: [
+    { input: 'id\tnote\n1\t"open quote\n2\tok\n', text: 'A field that starts with a double quote is read as quoted, CSV-style, and this one is never closed. If the quote is part of the text, the TSV writer should have doubled it; remove the quote or close it.' },
+    { input: 'id\tname\tcity\n1\tAnn\n', text: 'This row has fewer tab-separated fields than the header, which often happens when trailing empty fields lose their tabs while copying. The CSV pads the row with empty fields; check the source if the data looks shifted.' },
+  ],
+  watch: [
+    'Values are not converted: 1,200.50 stays the text 1,200.50, and dates keep their format. Nothing is lost, but nothing is cleaned up either.',
+    'Backslash escapes used by some TSV writers (\\t, \\n) are not decoded; they stay as two characters.',
+    'Rows with missing fields are padded with empty fields, so every CSV row has the same number of fields as the header.',
+  ],
+  faq: [
+    ['How do I convert TSV to CSV?', 'Paste the tab-separated text or open the .tsv file. The CSV appears on the right; download it as a .csv file.'],
+    ['Can I paste cells from Excel or Google Sheets?', 'Yes. Copying cells puts tab-separated text on the clipboard, so paste it straight into the input to get CSV.'],
+    ['Will my numbers or dates change?', 'No. Every value is copied as written. Only the separators and the quoting change.'],
+    ['When are quotes added?', 'Only when a field needs them: when it contains the delimiter, a double quote or a line break, or starts or ends with a space.'],
+    ['Can I make a semicolon-separated file instead?', 'Yes, choose Semicolon under Delimiter. Pipe and tab are available too.'],
+    ['Is the data uploaded?', 'No. It is converted in your browser.'],
+  ],
+  related: ['csv-to-json', 'csv-to-excel', 'excel-to-csv'],
+};

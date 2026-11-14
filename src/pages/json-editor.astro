@@ -1,0 +1,156 @@
+---
+import Layout from '../layouts/Layout.astro';
+import CodePane from '../components/CodePane.astro';
+import Faq from '../components/Faq.astro';
+import Ajv2020 from 'ajv/dist/2020';
+import { parseJson } from '../lib/convert/json.mjs';
+import { site } from '../lib/site.mjs';
+
+const sample = `{
+  "id": "ord-1001",
+  "customer": { "name": "Ann Smith", "email": "ann@example.com" },
+  "items": [
+    { "sku": "LAMP-20", "qty": 1, "price": 39.5 },
+    { "sku": "BULB-E27", "qty": 4, "price": 3.25 }
+  ],
+  "paid": true,
+  "note": null
+}
+`;
+const schema = `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["id", "customer", "items"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^ord-[0-9]+$" },
+    "customer": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" }
+      }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["sku", "qty", "price"],
+        "properties": {
+          "sku": { "type": "string" },
+          "qty": { "type": "integer", "minimum": 1 },
+          "price": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "paid": { "type": "boolean" },
+    "note": { "type": ["string", "null"] }
+  }
+}
+`;
+// The first screen shows the real verdicts for the sample, computed at build time.
+const { value } = parseJson(sample);
+const valid = new Ajv2020({ allErrors: true, strict: false, validateFormats: false }).compile(JSON.parse(schema))(value);
+if (!valid) throw new Error('json-editor: the sample must match the sample schema');
+const keys = Object.keys(value as object).length;
+
+const title = 'JSON Editor, Validator and Formatter with JSON Schema';
+const description = 'Edit JSON in your browser: errors with line and column, format, minify, sort keys, and JSON Schema checks for drafts 07 and 2020-12. Nothing is uploaded.';
+const faq: [string, string][] = [
+  ['How do I validate JSON?', 'Paste it or open a .json file. The editor checks it as you type. "Valid JSON" means it follows RFC 8259; otherwise the first error is shown with its line and column, and "Go to line" puts the cursor on it.'],
+  ['What is the difference between valid JSON and valid against a schema?', 'Valid JSON only means the syntax is right. A JSON Schema adds rules about the content: which keys are required, what type each value has, allowed ranges and patterns. Paste a schema in the right-hand pane to check those rules.'],
+  ['Which JSON Schema versions are supported?', 'Draft-07 and draft 2020-12, using the Ajv validator. The editor picks the draft from the schema\'s $schema keyword, or you can choose it. The "format" keyword (email, date and so on) is not checked.'],
+  ['Does Format change my numbers?', 'No. Format and Minify only change the whitespace between values, so a number such as 12345678901234567890 keeps all its digits and repeated keys stay as written. Sort keys has to read the values, so it refuses to run when a number would be rounded.'],
+  ['Why does it say a key appears twice?', 'RFC 8259 says object keys should be unique. JSON.parse in browsers keeps only the last value of a repeated key, so the first value is silently lost when a program reads the file.'],
+  ['Is my JSON saved or uploaded?', 'It is never uploaded. To survive a reload, the text is kept in this browser\'s local storage; Clear removes it. See the privacy page for details.'],
+  ['Can it fix invalid JSON automatically?', 'No. Guessing a fix can change the meaning of the data. The error message says what is wrong and where, so you can fix it yourself.'],
+];
+const structured = [{
+  '@context': 'https://schema.org', '@type': 'WebApplication', name: 'JSON Editor', url: `${site.url}/json-editor`, description,
+  applicationCategory: 'DeveloperApplication', operatingSystem: 'Any (runs in a web browser)', browserRequirements: 'Requires JavaScript', isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}];
+---
+<Layout title={title} description={description} section="JSON editor" crumbs={[['JSON Editor']]} structured={structured}>
+  <div class="wrap">
+    <div class="page-intro">
+      <h1>JSON Editor and Validator</h1>
+      <p class="lede">Check JSON as you type, see the line and column of any error, format or minify it, and validate it against a JSON Schema.</p>
+      <p class="privacy-line">Runs in your browser. Your JSON is never uploaded.</p>
+    </div>
+    <section class="tool" data-json-editor data-sample={sample} data-schema={schema} aria-label="JSON editor">
+      <div class="toolbar" role="toolbar" aria-label="JSON actions">
+        <button type="button" class="btn small primary" data-format>Format</button>
+        <label class="field"><span>Indent</span><select data-indent><option value="2" selected>2 spaces</option><option value="4">4 spaces</option><option value="tab">Tab</option></select></label>
+        <button type="button" class="btn small" data-minify>Minify</button>
+        <button type="button" class="btn small" data-sort>Sort keys</button>
+        <span class="sep" aria-hidden="true"></span>
+        <span class="btn small file-btn">Open file<input type="file" data-file accept=".json,application/json,text/plain" aria-label="Open a JSON file" /></span>
+        <button type="button" class="btn small" data-download>Download</button>
+        <button type="button" class="btn small" data-copy>Copy</button>
+        <button type="button" class="btn small" data-sample>Sample</button>
+        <button type="button" class="btn small" data-clear>Clear</button>
+      </div>
+      <div class="editor-panes two">
+        <div class="pane">
+          <div class="pane-head"><label class="pane-title" for="json-input">JSON</label><span class="badge ok" data-badge>Valid JSON</span></div>
+          <div class="drop" data-drop>
+            <CodePane id="json-input" value={sample} describedBy="json-stats" tall />
+            <p class="drop-hint" aria-hidden="true">Drop the file to open it</p>
+          </div>
+          <p class="pane-foot" id="json-stats" data-stats>{`${new TextEncoder().encode(sample).length} B · ${sample.split('\n').length} lines`}</p>
+        </div>
+        <div class="pane">
+          <div class="pane-head">
+            <label class="pane-title" for="schema-input">JSON Schema</label>
+            <div class="pane-actions">
+              <label class="field visually-labelled"><span class="visually-hidden">Schema draft</span><select data-draft aria-label="Schema draft"><option value="auto" selected>Draft from $schema</option><option value="2020-12">Draft 2020-12</option><option value="07">Draft-07</option></select></label>
+              <span class="btn small file-btn">Open<input type="file" data-schema-file accept=".json,application/json,application/schema+json" aria-label="Open a JSON Schema file" /></span>
+              <button type="button" class="btn small" data-schema-sample>Sample</button>
+              <button type="button" class="btn small" data-schema-clear>Clear</button>
+            </div>
+          </div>
+          <div class="drop" data-schema-drop>
+            <CodePane id="schema-input" value={schema} describedBy="schema-status" tall />
+            <p class="drop-hint" aria-hidden="true">Drop a schema file</p>
+          </div>
+          <p class="pane-foot" id="schema-status" data-schema-status aria-live="polite">Valid against the schema (draft 2020-12).</p>
+        </div>
+      </div>
+      <div class="tool-status">
+        <p class="status is-ok" role="status" aria-live="polite" data-status>Valid JSON: an object with {keys} keys.</p>
+        <div data-messages></div>
+        <div data-schema-results></div>
+      </div>
+    </section>
+
+    <div class="prose content">
+      <h2>What the editor checks</h2>
+      <p>The syntax check follows RFC 8259, the JSON standard (also published as ECMA-404). It catches what other tools often let through: trailing commas, single quotes, comments, unquoted keys, leading zeros such as 007, and NaN or Infinity, none of which JSON allows. The first error is reported with a plain explanation and its position, and the line is marked in the margin.</p>
+      <p>Two things are valid JSON but often a mistake, so they are reported as notes: a key that appears twice in one object, and a whole number larger than 2^53 (9,007,199,254,740,992), which JavaScript and many other languages round when they read it.</p>
+      <h2>The buttons</h2>
+      <ul>
+        <li><strong>Format</strong> re-indents the JSON with 2 spaces, 4 spaces or tabs. Only whitespace changes.</li>
+        <li><strong>Minify</strong> removes all whitespace between values, for the smallest file.</li>
+        <li><strong>Sort keys</strong> orders the keys of every object from A to Z, at every level. Arrays keep their order.</li>
+        <li><strong>Open file</strong> and drag and drop read a file from your device. <strong>Download</strong> saves the text as a .json file and <strong>Copy</strong> puts it on the clipboard.</li>
+      </ul>
+      <h2>Validating against a JSON Schema</h2>
+      <p>A JSON Schema describes what a document must contain. Paste one into the right-hand pane, or open a schema file, and the data is checked against it on every change, using Ajv. Each problem names the location in the data as a JSON Pointer (such as /items/0/price) with the line and column where that value starts. The sample schema requires an order ID that matches a pattern, a customer name and at least one item; try changing a quantity to 0 or deleting the "sku" of an item.</p>
+      <p>Draft-07 and draft 2020-12 are supported. They differ in places: for example, draft 2020-12 replaced the array form of "items" with "prefixItems". If a schema declares another draft, choose one of the two in the list and it is checked by that draft's rules.</p>
+      <Faq items={faq} title="JSON editor: questions people ask" />
+      <h2>Related tools</h2>
+      <ul>
+        <li><a href="/json-to-yaml">JSON to YAML converter</a> and <a href="/yaml-editor">YAML editor</a></li>
+        <li><a href="/json-to-csv">JSON to CSV converter</a> for tables, and <a href="/json-to-excel">JSON to Excel</a></li>
+        <li><a href="/formats/json">The JSON format guide</a>: syntax, data types and pitfalls</li>
+      </ul>
+    </div>
+  </div>
+</Layout>
+<script>
+  import { initJsonEditor } from '../scripts/json-editor';
+  const root = document.querySelector<HTMLElement>('[data-json-editor]');
+  if (root) initJsonEditor(root);
+</script>

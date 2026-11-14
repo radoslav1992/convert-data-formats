@@ -1,0 +1,12 @@
+---
+// A read-only code pane with line numbers. The text is real HTML text, readable before any script runs.
+import '../styles/tool.css';
+import { numbers } from '../lib/render.mjs';
+interface Props { value?: string; label: string; tall?: boolean }
+const { value = '', label, tall = false } = Astro.props;
+const text = value.replace(/\n$/, '');
+---
+<div class:list={['code-view', { tall }]} data-code-view tabindex="0" role="region" aria-label={label} style={`--digits:${Math.max(2, String(text.split('\n').length).length)}`}>
+  <div class="gutter" aria-hidden="true">{numbers(text)}</div>
+  <pre><code>{text}</code></pre>
+</div>

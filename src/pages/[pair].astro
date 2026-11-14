@@ -1,0 +1,132 @@
+---
+// One page per conversion (/csv-to-json and so on), all from src/lib/pairs.mjs. The tool's sample, the worked
+// example, every option example and every error message below are produced at build time by the engine.
+import Layout from '../layouts/Layout.astro';
+import Converter from '../components/Converter.astro';
+import Faq from '../components/Faq.astro';
+import Example from '../components/Example.astro';
+import { PAIRS, pairBySlug } from '../lib/pairs.mjs';
+import { FORMATS } from '../lib/convert/index.mjs';
+import { OPTION_DEFS, optionDefaults } from '../lib/options.mjs';
+import { run, publicFile, workbookGrid, gridToWorkbook } from '../lib/render.mjs';
+import { site } from '../lib/site.mjs';
+
+export function getStaticPaths() {
+  return PAIRS.map(pair => ({ params: { pair: pair.slug }, props: { slug: pair.slug } }));
+}
+
+const pair = pairBySlug(Astro.props.slug);
+const { from, to } = pair;
+const A = FORMATS[from];
+const B = FORMATS[to];
+const defaults = optionDefaults(pair.options, pair.defaults);
+const sample = pair.samples[0];
+
+// The tool's first screen: the default sample, converted.
+let input = '';
+let inputGrid;
+let sheets = [];
+let toolInput;
+if (from === 'xlsx') {
+  toolInput = publicFile(sample.file);
+  ({ grid: inputGrid, sheets } = await workbookGrid(toolInput));
+} else {
+  input = sample.text;
+  toolInput = input;
+}
+const result = await run(from, to, toolInput, defaults);
+if (!result.ok) throw new Error(`${pair.slug}: the default sample does not convert: ${result.error.display}`);
+
+// Example inputs are text, or a sheet (rows) for Excel pages.
+const sourceOf = async item => (from === 'xlsx' ? gridToWorkbook(item.sheets ?? item.grid) : item.input);
+const example = { ...pair.example, result: await run(from, to, await sourceOf(pair.example), { ...defaults, ...(pair.example.options ?? {}) }) };
+const optionDocs = [];
+for (const doc of pair.optionDocs) {
+  const source = await sourceOf(doc);
+  const variants = [];
+  for (const [label, options] of doc.variants) variants.push({ label, result: await run(from, to, source, { ...defaults, ...options }) });
+  optionDocs.push({ ...doc, def: OPTION_DEFS[doc.option], variants });
+}
+const errors = [];
+for (const item of pair.errors) {
+  const source = item.hex ? Uint8Array.from(item.hex.match(/../g).map(h => parseInt(h, 16))) : item.bytes ? new TextEncoder().encode(item.bytes) : item.grid ? await gridToWorkbook(item.grid) : item.input;
+  const outcome = await run(from, to, source, { ...defaults, ...(item.options ?? {}) });
+  const message = outcome.ok ? outcome.warnings[0] : outcome.error.display;
+  if (!message) throw new Error(`${pair.slug}: error example produces no message: ${JSON.stringify(item.input)}`);
+  errors.push({ ...item, kind: outcome.ok ? 'Note' : 'Error', message });
+}
+
+const reverse = pairBySlug(pair.reverseSlug);
+const related = pair.related.map(pairBySlug).filter(Boolean);
+const guideId = f => f;
+const structured = [{
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: pair.h1,
+  url: `${site.url}/${pair.slug}`,
+  description: pair.description,
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'Any (runs in a web browser)',
+  browserRequirements: 'Requires JavaScript',
+  isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}];
+---
+<Layout title={pair.title} description={pair.description} section="Converters" crumbs={[['Converters', '/converters'], [pair.name]]} structured={structured}>
+  <div class="wrap">
+    <div class="page-intro">
+      <h1>{pair.h1}</h1>
+      <p class="lede">{pair.lede}</p>
+      <p class="privacy-line"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 2.5 3v4.2c0 3.4 2.3 6.4 5.5 7.8 3.2-1.4 5.5-4.4 5.5-7.8V3L8 1Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m5.5 8 1.8 1.8 3.4-3.6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Runs in your browser. Your data is never uploaded.</p>
+    </div>
+    <Converter id={pair.slug} from={from} to={to} options={pair.options} defaults={defaults} labels={pair.labels}
+      samples={pair.samples} input={input} inputGrid={inputGrid} inputName={sample.file?.split('/').pop()} sheets={sheets}
+      result={result} reverse={reverse && { slug: reverse.slug, name: reverse.name }} />
+
+    <div class="prose content">
+      <h2 id="rules">How {A.name} becomes {B.name}</h2>
+      <p>{pair.rulesIntro}</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">In {A.name}</th><th scope="col">In {B.name}</th></tr></thead>
+          <tbody>{pair.rules.map(([a, b]) => <tr><td>{a}</td><td>{b}</td></tr>)}</tbody>
+        </table>
+      </div>
+
+      <h2 id="example">Worked example</h2>
+      <p>{example.text}</p>
+      <Example from={from} to={to} input={example.input} grid={example.grid} result={example.result} />
+
+      <h2 id="options">Options</h2>
+      {pair.optionsIntro && <p>{pair.optionsIntro}</p>}
+      {optionDocs.map(doc => (
+        <div class="option-doc">
+          <h3>{pair.labels[doc.option] ?? doc.def.label}</h3>
+          <p>{doc.text}</p>
+          <Example from={from} to={to} input={doc.input} grid={doc.grid} sheets={doc.sheets} variants={doc.variants} />
+        </div>
+      ))}
+
+      <h2 id="errors">Common errors and how to fix them</h2>
+      {errors.map(item => (
+        <div class="option-doc">
+          <Example from={from} to={to} input={item.input} grid={item.grid} bytesNote={item.bytesNote} message={item.message} kind={item.kind} />
+          <p>{item.text}</p>
+        </div>
+      ))}
+
+      <h2 id="watch">{pair.watchTitle ?? 'What is lost and what to watch'}</h2>
+      <ul>{pair.watch.map(item => <li>{item}</li>)}</ul>
+
+      <Faq items={pair.faq} title={`${pair.name}: questions people ask`} />
+
+      <h2 id="related">Related tools and guides</h2>
+      <ul class="link-list">
+        {reverse && <li><a href={`/${reverse.slug}`}>{reverse.name} converter</a> (the reverse direction)</li>}
+        <li><a href={`/formats/${guideId(from)}`}>{A.name} format guide</a></li>
+        <li><a href={`/formats/${guideId(to)}`}>{B.name} format guide</a></li>
+        {related.map(r => <li><a href={`/${r.slug}`}>{r.name} converter</a>: {r.blurb}</li>)}
+      </ul>
+    </div>
+  </div>
+</Layout>

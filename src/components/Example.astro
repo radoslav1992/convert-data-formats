@@ -1,0 +1,65 @@
+---
+// An input and what the converter makes of it: one output, several outputs (one per option value) or the
+// message the tool shows. Every output here was produced by the engine at build time.
+import { FORMATS } from '../lib/convert/index.mjs';
+
+interface Outcome { ok: boolean; text?: string; table?: { columns: string[]; rows: unknown[][] }; warnings?: string[]; error?: { display: string }; meta?: { sheetName?: string } }
+interface Props {
+  from: string;
+  to: string;
+  input?: string;
+  grid?: unknown[][];
+  sheets?: [string, unknown[][]][];
+  result?: Outcome;
+  variants?: { label: string; result: Outcome }[];
+  message?: string;
+  kind?: string;
+  bytesNote?: string;
+}
+const { from, to, input, grid, sheets, result, variants, message, kind = 'Error', bytesNote } = Astro.props;
+const A = FORMATS[from];
+const B = FORMATS[to];
+const outputs = variants ?? (result ? [{ label: '', result }] : []);
+const columns = 1 + (message ? 1 : outputs.length);
+const cell = (v: unknown) => (v === null || v === undefined ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : String(v));
+const trim = (text = '') => text.replace(/\n$/, '');
+---
+<div class="example" style={`--cols:${Math.min(columns, 3)}`}>
+  <figure>
+    <figcaption>{A.name} input</figcaption>
+    {sheets ? sheets.map(([name, rows]) => (
+      <div class="table-wrap snippet-table"><table><caption>Sheet "{name}"</caption><tbody>{rows.map((row, r) => <tr>{row.map(v => (r === 0 ? <th scope="col">{cell(v)}</th> : <td>{cell(v)}</td>))}</tr>)}</tbody></table></div>
+    )) : grid ? (
+      <div class="table-wrap snippet-table"><table><tbody>{grid.map((row, r) => <tr>{row.map(v => (r === 0 ? <th scope="col">{cell(v)}</th> : <td>{cell(v)}</td>))}</tr>)}</tbody></table></div>
+    ) : bytesNote ? (
+      <pre class="snippet">{bytesNote}</pre>
+    ) : (
+      <pre class="snippet">{trim(input)}</pre>
+    )}
+  </figure>
+  {message && (
+    <figure>
+      <figcaption>{kind === 'Note' ? 'Note shown by the tool' : 'Message shown by the tool'}</figcaption>
+      <pre class="snippet error-text">{message}</pre>
+    </figure>
+  )}
+  {outputs.map(({ label, result: r }) => (
+    <figure>
+      <figcaption>{B.name} output{label ? `: ${label}` : ''}</figcaption>
+      {!r.ok ? (
+        <pre class="snippet error-text">{r.error?.display}</pre>
+      ) : r.table && to === 'xlsx' ? (
+        <div class="table-wrap snippet-table"><table><caption>Sheet "{r.meta?.sheetName ?? 'Sheet1'}"</caption><thead><tr>{r.table.columns.map(c => <th scope="col">{c}</th>)}</tr></thead><tbody>{r.table.rows.map(row => <tr>{row.map(v => <td>{cell(v)}</td>)}</tr>)}</tbody></table></div>
+      ) : (
+        <pre class="snippet">{trim(r.text)}</pre>
+      )}
+    </figure>
+  ))}
+</div>
+<style>
+  @media (min-width: 760px) { .example { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); } }
+  .snippet-table { margin: 0 0 6px; }
+  .snippet-table caption { text-align: left; padding: 4px 10px; font: 500 .75rem/1.4 var(--font-mono); color: var(--muted); }
+  .snippet-table table { min-width: 0; font: 400 .82rem/1.4 var(--font-mono); }
+  .snippet-table th, .snippet-table td { padding: 4px 10px; white-space: pre; }
+</style>

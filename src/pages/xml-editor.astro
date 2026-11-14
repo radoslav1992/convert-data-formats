@@ -1,0 +1,83 @@
+---
+import Layout from '../layouts/Layout.astro';
+import EditorShell from '../components/EditorShell.astro';
+import Faq from '../components/Faq.astro';
+import { checkXml } from '../lib/convert/xml.mjs';
+import { site } from '../lib/site.mjs';
+
+const sample = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- Two books from a library catalog -->
+<catalog updated="2024-03-15">
+  <book id="bk101" lang="en">
+    <title>A Field Guide to Ferns</title>
+    <author>Okafor, Ada</author>
+    <price currency="USD">44.95</price>
+    <tags><tag>xml</tag><tag>reference</tag></tags>
+  </book>
+  <book id="bk102" lang="en">
+    <title>Midnight Rain</title>
+    <author>Lindqvist, Elin</author>
+    <price currency="USD">5.95</price>
+    <summary><![CDATA[Rain, a <locked> door & a missing key.]]></summary>
+  </book>
+</catalog>
+`;
+if (checkXml(sample)) throw new Error('xml-editor: the sample must be well-formed');
+const elements = (sample.match(/<[A-Za-z_:][^\s/>]*/g) ?? []).length;
+const title = 'XML Editor and Validator: Check Well-Formed XML';
+const description = 'Check that XML is well-formed, with the line and column of the first error. Format or minify XML while keeping comments and CDATA. Runs in your browser.';
+const faq: [string, string][] = [
+  ['What does "well-formed" mean?', 'It means the document follows the syntax rules of XML 1.0: exactly one root element, every start tag closed by a matching end tag in the right order, attribute values in quotes, no attribute repeated in a tag, and the characters < and & escaped in text. A parser must refuse a document that is not well-formed.'],
+  ['Is well-formed the same as valid?', 'No. Valid XML is well-formed and also matches a schema (a DTD or an XML Schema) that says which elements and attributes are allowed. This editor checks well-formedness only.'],
+  ['Why is "&" an error in my XML?', 'In XML text and attribute values, & starts an entity reference such as &amp;. A bare & (as in "Fish & Chips") must be written as &amp;. Entities known from HTML, such as &nbsp;, do not exist in XML unless a DTD declares them; use a numeric reference such as &#160; instead.'],
+  ['Does Format change my data?', 'It adds line breaks and indentation between elements. Text inside elements that mix text and child elements (such as <p>Hello <b>you</b></p>) is left exactly as is, because whitespace there is part of the content. Attribute values are not touched.'],
+  ['Does the editor process DTDs or entities?', 'No. Documents that declare entities in a DOCTYPE are reported and not expanded. Entity expansion is how "billion laughs" and external-entity (XXE) attacks work, so it is switched off.'],
+  ['Is my XML uploaded?', 'No. It is checked in your browser. A copy is kept in this browser\'s local storage so a reload does not lose it; Clear removes it.'],
+];
+const structured = [{
+  '@context': 'https://schema.org', '@type': 'WebApplication', name: 'XML Editor', url: `${site.url}/xml-editor`, description,
+  applicationCategory: 'DeveloperApplication', operatingSystem: 'Any (runs in a web browser)', browserRequirements: 'Requires JavaScript', isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}];
+---
+<Layout title={title} description={description} section="XML editor" crumbs={[['XML Editor']]} structured={structured}>
+  <div class="wrap">
+    <div class="page-intro">
+      <h1>XML Editor and Well-Formedness Checker</h1>
+      <p class="lede">Paste XML or open a file to check that it is well-formed, find the exact line and column of any error, and format or minify it.</p>
+      <p class="privacy-line">Runs in your browser. Your XML is never uploaded.</p>
+    </div>
+    <EditorShell id="xml-input" label="XML" value={sample} badge="Well-formed" dataAttr="data-xml-editor" accept=".xml,application/xml,text/xml,.svg,.xsd,.xsl,.rss,.atom,.plist,text/plain"
+      status={`Well-formed XML: root element <catalog>, ${elements} elements.`} stats={`${new TextEncoder().encode(sample).length} B · ${sample.split('\n').length} lines`}>
+      <Fragment slot="tools">
+        <button type="button" class="btn small primary" data-format>Format</button>
+        <label class="field"><span>Indent</span><select data-indent><option value="2" selected>2 spaces</option><option value="4">4 spaces</option><option value="tab">Tab</option></select></label>
+        <button type="button" class="btn small" data-minify>Minify</button>
+      </Fragment>
+    </EditorShell>
+    <div class="prose content">
+      <h2>What the checker looks for</h2>
+      <p>The rules come from XML 1.0 (Fifth Edition), the W3C Recommendation. The checker reports the first break of these rules, with its line and column:</p>
+      <ul>
+        <li>There is exactly one root element, and no text outside it. The XML declaration, comments and processing instructions may come before it.</li>
+        <li>Every start tag has a matching end tag, and elements close in the reverse order they opened: &lt;a&gt;&lt;b&gt;&lt;/b&gt;&lt;/a&gt;, never &lt;a&gt;&lt;b&gt;&lt;/a&gt;&lt;/b&gt;. Names are case-sensitive, so &lt;Book&gt; is not closed by &lt;/book&gt;.</li>
+        <li>Attribute values are in single or double quotes, and an attribute appears at most once in a tag.</li>
+        <li>In text and attribute values, &lt; is written &amp;lt; and &amp; is written &amp;amp; (or as part of a character reference such as &amp;#233;).</li>
+        <li>Element and attribute names start with a letter or an underscore and contain no spaces.</li>
+      </ul>
+      <h2>Format and minify</h2>
+      <p>Format puts each element on its own line and indents children by 2 spaces, 4 spaces or a tab. Minify removes the whitespace between tags. Both keep comments, CDATA sections, processing instructions and the DOCTYPE, and both leave mixed content (text with child elements inside it) exactly as written.</p>
+      <Faq items={faq} title="XML editor: questions people ask" />
+      <h2>Related tools</h2>
+      <ul>
+        <li><a href="/xml-to-json">XML to JSON</a>, <a href="/xml-to-csv">XML to CSV</a> and <a href="/xml-to-yaml">XML to YAML</a> converters</li>
+        <li><a href="/formats/xml">The XML format guide</a>: syntax, escaping and pitfalls</li>
+      </ul>
+    </div>
+  </div>
+</Layout>
+<script>
+  import { initXmlEditor } from '../scripts/xml-editor';
+  const root = document.querySelector<HTMLElement>('[data-xml-editor]');
+  if (root) initXmlEditor(root);
+</script>

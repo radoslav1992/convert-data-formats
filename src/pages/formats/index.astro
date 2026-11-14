@@ -1,0 +1,41 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { GUIDES } from '../../lib/guides.mjs';
+
+const rows: [string, string, string, string, string][] = [
+  ['CSV', 'RFC 4180', 'No (flat table)', 'None: all text', 'No'],
+  ['TSV', 'IANA media type registration', 'No (flat table)', 'None: all text', 'No'],
+  ['JSON', 'RFC 8259, ECMA-404', 'Yes', 'String, number, boolean, null, object, array', 'No'],
+  ['YAML', 'YAML 1.2.2', 'Yes', 'As JSON, plus anchors and tags', 'Yes (#)'],
+  ['XML', 'XML 1.0 Fifth Edition', 'Yes (a tree)', 'None: all text (types come from schemas)', 'Yes (<!-- -->)'],
+  ['TOML', 'TOML 1.0.0', 'Yes (tables)', 'String, integer, float, boolean, four date and time types, array, table; no null', 'Yes (#)'],
+  ['Excel (.xlsx)', 'ECMA-376, ISO/IEC 29500', 'No (sheets of cells)', 'Number, text, boolean, formula, error; dates are formatted numbers', 'Cell comments'],
+];
+---
+<Layout title="Data Format Guides: CSV, TSV, JSON, YAML, XML, TOML, Excel" description="Plain guides to seven data formats: the standard behind each one, its syntax and data types, the usual pitfalls, and when to choose it over the others." crumbs={[['Formats']]} section="Formats">
+  <div class="wrap">
+    <div class="page-intro">
+      <h1>Data format guides</h1>
+      <p class="lede">How CSV, TSV, JSON, YAML, XML, TOML and Excel workbooks store data, what each one cannot express, and which to pick for a job.</p>
+    </div>
+    <h2>The formats at a glance</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Format</th><th scope="col">Defined by</th><th scope="col">Nesting</th><th scope="col">Data types</th><th scope="col">Comments</th></tr></thead>
+        <tbody>{rows.map(([name, std, nest, types, comments]) => <tr><th scope="row">{name}</th><td>{std}</td><td>{nest}</td><td>{types}</td><td>{comments}</td></tr>)}</tbody>
+      </table>
+    </div>
+    <h2>Which format should I use?</h2>
+    <div class="prose">
+      <ul>
+        <li><strong>A flat table for a spreadsheet or database:</strong> CSV, or .xlsx if people will open it in Excel and leading zeros or long numbers must survive.</li>
+        <li><strong>Data sent between programs or through an API:</strong> JSON.</li>
+        <li><strong>Configuration that people edit:</strong> YAML for nested settings, TOML for flatter ones with typed dates.</li>
+        <li><strong>A format required by a standard or partner, or documents mixing text and markup:</strong> XML.</li>
+        <li><strong>Tables pasted between programs:</strong> TSV, which is what spreadsheets put on the clipboard.</li>
+      </ul>
+    </div>
+    <h2>The guides</h2>
+    <ul class="tool-list">{GUIDES.map(guide => <li><a href={`/formats/${guide.id}`}><strong>{guide.fullName}</strong><span>{guide.blurb}</span></a></li>)}</ul>
+  </div>
+</Layout>

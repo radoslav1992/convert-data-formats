@@ -1,0 +1,84 @@
+---
+import Layout from '../layouts/Layout.astro';
+import CodePane from '../components/CodePane.astro';
+import Faq from '../components/Faq.astro';
+import { parseRows } from '../lib/convert/csv.mjs';
+import { site } from '../lib/site.mjs';
+
+const samples = [
+  { label: 'Sales (CSV)', text: 'region,rep,month,units,revenue,returning\nNorth,Ann Smith,2024-01,120,"14,400.00",yes\nSouth,Bruno Díaz,2024-01,95,"11,875.50",no\nNorth,Chen Wei,2024-02,143,"17,160.00",yes\nWest,"O\'Neil, Pat",2024-02,61,"7,320.00",no\nSouth,Ann Smith,2024-03,88,"10,560.00",yes\nWest,Chen Wei,2024-03,150,"18,000.00",yes\n' },
+  { label: 'Inventory (TSV)', text: 'sku\tname\tqty\tlocation\nA-100\tDesk lamp\t14\tAisle 3\nA-101\tBulb E27\t220\tAisle 3\nB-210\tCable, 2 m\t75\tAisle 7\n' },
+];
+const first = parseRows(samples[0].text);
+const [head, ...body] = first.rows;
+const isNumber = (s: string) => s.trim() !== '' && Number.isFinite(Number(s));
+const numeric = head.map((_, c) => body.every(r => (r[c] ?? '') === '' || isNumber(r[c])));
+const title = 'CSV Viewer: Open CSV and TSV Files as a Sortable Table';
+const description = 'View a CSV or TSV file as a table in your browser. Sort any column, see row and column counts and the detected delimiter. Files are never uploaded.';
+const faq: [string, string][] = [
+  ['How do I open a CSV file without Excel?', 'Open it here with "Open file", or drop it on the text box. It is shown as a table straight away, without changing any value: leading zeros, long numbers and dates appear exactly as they are in the file.'],
+  ['How is the delimiter detected?', 'The viewer reads the first lines and picks the character that splits them into the same number of fields: comma, semicolon, tab or pipe. If it picks the wrong one, choose it in the Delimiter list.'],
+  ['How does sorting work?', 'Select a column heading to sort by it, again to reverse the order, and a third time to go back to the file order. Columns that hold only numbers sort as numbers; other columns sort as text, with numbers inside text (such as A-2 and A-10) in natural order. The # column keeps each row\'s position in the file.'],
+  ['Why are some rows missing from the table?', 'For speed, the table draws the first 1,000 rows of the current order. The counts above it cover the whole file, and sorting uses every row, so the largest or smallest values are always in view.'],
+  ['Does it change my file?', 'No. The viewer only reads. To change the format, use one of the converters, such as CSV to Excel or CSV to JSON.'],
+  ['Is my file uploaded?', 'No. It is read and drawn in your browser. Nothing is stored or sent anywhere.'],
+];
+const structured = [{
+  '@context': 'https://schema.org', '@type': 'WebApplication', name: 'CSV Viewer', url: `${site.url}/csv-viewer`, description,
+  applicationCategory: 'DeveloperApplication', operatingSystem: 'Any (runs in a web browser)', browserRequirements: 'Requires JavaScript', isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}];
+---
+<Layout title={title} description={description} section="CSV viewer" crumbs={[['CSV Viewer']]} structured={structured}>
+  <div class="wrap">
+    <div class="page-intro">
+      <h1>CSV Viewer</h1>
+      <p class="lede">Paste or open a CSV or TSV file and read it as a table: sort any column, and see how many rows and columns it has and which delimiter it uses.</p>
+      <p class="privacy-line">Runs in your browser. Your file is never uploaded.</p>
+    </div>
+    <section class="tool" data-csv-viewer data-samples={JSON.stringify(samples)} aria-label="CSV viewer">
+      <div class="toolbar" role="toolbar" aria-label="CSV viewer actions">
+        <span class="btn small file-btn primary">Open file<input type="file" data-file accept=".csv,.tsv,.tab,.txt,text/csv,text/tab-separated-values" aria-label="Open a CSV or TSV file" /></span>
+        {samples.map((s, i) => <button type="button" class="btn small" data-sample={i}>{s.label}</button>)}
+        <label class="field"><span>Delimiter</span><select data-delimiter><option value="auto" selected>Detect</option><option value="comma">Comma ,</option><option value="semicolon">Semicolon ;</option><option value="tab">Tab</option><option value="pipe">Pipe |</option></select></label>
+        <label class="check"><input type="checkbox" data-header checked /> <span>First row is the header</span></label>
+        <button type="button" class="btn small" data-clear>Clear</button>
+      </div>
+      <div class="pane">
+        <div class="pane-head"><label class="pane-title" for="csv-text">CSV or TSV text</label></div>
+        <div class="drop" data-drop>
+          <CodePane id="csv-text" value={samples[0].text} short />
+          <p class="drop-hint" aria-hidden="true">Drop the file to open it</p>
+        </div>
+      </div>
+      <div class="tool-status">
+        <p class="status" role="status" aria-live="polite" data-status>{body.length} rows and {head.length} columns, separated by commas. Select a column heading to sort.</p>
+        <p class="pane-foot summary" data-summary>{`${body.length} rows × ${head.length} columns · delimiter: comma · ${new TextEncoder().encode(samples[0].text).length} B`}</p>
+        <div data-messages></div>
+      </div>
+      <div class="table-preview viewer-table" data-table tabindex="0" role="region" aria-label="CSV data as a table">
+        <table>
+          <caption class="visually-hidden">The data as a table. In file order.</caption>
+          <thead><tr><th scope="col" class="rownum">#</th>{head.map(name => <th scope="col" aria-sort="none"><button type="button">{name}</button></th>)}</tr></thead>
+          <tbody>{body.map((row, i) => <tr><th scope="row" class="rownum">{i + 1}</th>{head.map((_, c) => <td class={numeric[c] ? 'num' : undefined}>{row[c] ?? ''}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    </section>
+    <div class="prose content">
+      <h2>What the viewer shows</h2>
+      <p>Every value appears exactly as written in the file. Nothing is converted, so 007 keeps its zeros, 2024-01 stays as written and a quoted field such as "O'Neil, Pat" shows its comma without the quotes. Quoting follows RFC 4180: a field in double quotes may contain the delimiter, line breaks and doubled quotes.</p>
+      <p>The line above the table counts the data rows (not the header) and the columns, names the delimiter, and says whether the file starts with a UTF-8 byte order mark. Rows with fewer fields than the widest row are listed in a note, since they often point to a missing delimiter or a broken quote.</p>
+      <Faq items={faq} title="CSV viewer: questions people ask" />
+      <h2>Related tools</h2>
+      <ul>
+        <li><a href="/csv-to-json">CSV to JSON</a>, <a href="/csv-to-excel">CSV to Excel</a> and <a href="/csv-to-tsv">CSV to TSV</a> converters</li>
+        <li><a href="/formats/csv">The CSV format guide</a> and <a href="/formats/tsv">the TSV format guide</a></li>
+      </ul>
+    </div>
+  </div>
+</Layout>
+<script>
+  import { initCsvViewer } from '../scripts/csv-viewer';
+  const root = document.querySelector<HTMLElement>('[data-csv-viewer]');
+  if (root) initCsvViewer(root);
+</script>

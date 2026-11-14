@@ -1,0 +1,12 @@
+---
+// An editable code pane: a textarea with a line-number gutter and an error-line marker (see scripts/ui.ts).
+import '../styles/tool.css';
+import { numbers } from '../lib/render.mjs';
+interface Props { id: string; value?: string; describedBy?: string; tall?: boolean; short?: boolean }
+const { id, value = '', describedBy, tall = false, short = false } = Astro.props;
+---
+<div class:list={['code-area', { tall, short }]} data-code-area style={`--digits:${Math.max(2, String(value.split('\n').length).length)}`}>
+  <div class="gutter-clip" aria-hidden="true"><div class="gutter">{numbers(value)}</div></div>
+  <div class="line-mark" hidden aria-hidden="true"></div>
+  <textarea id={id} class="code-input" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" aria-describedby={describedBy}>{value}</textarea>
+</div>

@@ -1,0 +1,69 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Converter from '../components/Converter.astro';
+import Faq from '../components/Faq.astro';
+import { GROUPS, EDITORS, GUIDES } from '../lib/tools.mjs';
+import { detect } from '../lib/convert/index.mjs';
+import { OPTION_DEFS } from '../lib/options.mjs';
+import { run } from '../lib/render.mjs';
+import { site } from '../lib/site.mjs';
+
+const samples = [
+  { label: 'CSV', text: 'id,name,city,joined,active\n1,Ann Smith,Boston,2023-11-02,true\n2,Bruno Díaz,Madrid,2024-01-15,false\n3,Chen Wei,Singapore,2024-02-20,true\n' },
+  { label: 'JSON', text: '{\n  "service": "shop-api",\n  "port": 8080,\n  "debug": false,\n  "owners": ["ann", "bruno"],\n  "database": { "host": "db.internal", "pool": 10 }\n}\n' },
+  { label: 'YAML', text: 'service: shop-api\nport: 8080\ndebug: false\nowners:\n  - ann\n  - bruno\ndatabase:\n  host: db.internal\n  pool: 10\n' },
+  { label: 'XML', text: '<?xml version="1.0" encoding="UTF-8"?>\n<orders>\n  <order id="1001"><item>Lamp</item><qty>1</qty></order>\n  <order id="1002"><item>Bulb</item><qty>4</qty></order>\n</orders>\n' },
+  { label: 'TOML', text: 'title = "Shop API"\n\n[server]\nport = 8080\nhosts = ["a.internal", "b.internal"]\n\n[[users]]\nname = "ann"\n\n[[users]]\nname = "bruno"\n' },
+  { label: 'Excel', file: '/samples/orders.xlsx' },
+];
+const input = samples[0].text;
+const from = detect(input).format;
+const defaults = Object.fromEntries(Object.entries(OPTION_DEFS).map(([k, d]) => [k, d.default]));
+const result = await run(from, 'json', input, defaults);
+if (!result.ok) throw new Error('home: sample does not convert');
+
+const faq: [string, string][] = [
+  ['Are my files uploaded?', 'No. Every tool on this site runs in your browser. Files you open are read on your device, converted there, and never sent to a server.'],
+  ['Which formats can I convert?', 'CSV, TSV, JSON, YAML, XML, TOML and Excel workbooks (.xlsx), in any direction with the converter above. Each common pair also has its own page with the rules it follows and examples.'],
+  ['How does format detection work?', 'An opened file is recognised by its extension (.csv, .json, .yml and so on), and a workbook by its file signature. Pasted text is checked in this order: JSON (starts with { or [ and parses), XML (starts with <), TOML (key = value lines and [table] headers), TSV (the same number of tabs on every line), YAML (key: value lines or a --- marker), then CSV (the same number of commas, semicolons or pipes on every line). You can always choose the format by hand.'],
+  ['Is there a size limit?', 'There is no fixed limit. Inputs over about 200 KB are converted in a background worker so the page stays responsive, and files of 10 MB convert in a few seconds on a typical laptop. Very large files are limited by your device\'s memory.'],
+  ['Do I need an account?', 'No. There are no accounts, no sign-up and no ads.'],
+];
+const structured = [{
+  '@context': 'https://schema.org', '@type': 'WebApplication', name: site.name, url: `${site.url}/`, description: site.defaultDescription,
+  applicationCategory: 'DeveloperApplication', operatingSystem: 'Any (runs in a web browser)', browserRequirements: 'Requires JavaScript', isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}];
+---
+<Layout structured={structured}>
+  <div class="wrap">
+    <div class="page-intro">
+      <h1>Convert CSV, JSON, YAML, XML, TOML and Excel files</h1>
+      <p class="lede">Paste data or open a file: the format is detected, and you choose what to turn it into. Free, with no sign-up.</p>
+      <p class="privacy-line"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 2.5 3v4.2c0 3.4 2.3 6.4 5.5 7.8 3.2-1.4 5.5-4.4 5.5-7.8V3L8 1Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m5.5 8 1.8 1.8 3.4-3.6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Everything runs in your browser. Your files are never uploaded.</p>
+    </div>
+    <Converter id="home" mode="auto" from={from} to="json" options={Object.keys(OPTION_DEFS)} defaults={defaults} samples={samples} input={input} result={result}
+      detected={`Detected CSV. ${detect(input).reason}`} />
+
+    <section class="section" aria-labelledby="tools-heading">
+      <h2 id="tools-heading">All tools</h2>
+      {GROUPS.map(group => (
+        <Fragment>
+          <h3>{group.name} converters</h3>
+          <ul class="tool-list">{group.pairs.map(pair => <li><a href={`/${pair.slug}`}><strong>{pair.name}</strong><span>{pair.blurb}</span></a></li>)}</ul>
+        </Fragment>
+      ))}
+      <h3>Editors and viewers</h3>
+      <ul class="tool-list">{EDITORS.map(tool => <li><a href={`/${tool.slug}`}><strong>{tool.name}</strong><span>{tool.blurb}</span></a></li>)}</ul>
+      <h3>Format guides</h3>
+      <ul class="tool-list">{GUIDES.map(guide => <li><a href={`/formats/${guide.id}`}><strong>{guide.name}</strong><span>{guide.blurb}</span></a></li>)}</ul>
+    </section>
+
+    <div class="prose content">
+      <h2>How the conversions work</h2>
+      <p>Each format is read into plain data (objects, lists, text, numbers, true, false and null) and written out in the other format. Where the formats differ, the converter follows written rules instead of guessing, and tells you when it had to change something: a CSV header that appears twice, a key that is not a valid XML name, a null that TOML cannot hold. The rules for each pair are on its own page, with examples made by the converter itself.</p>
+      <p>Values that look like numbers are only turned into numbers when nothing changes on the way back. A postcode such as 02134 or a 20-digit ID stays text, so no zero or digit is lost.</p>
+      <Faq items={faq} title="Questions people ask" />
+    </div>
+  </div>
+</Layout>

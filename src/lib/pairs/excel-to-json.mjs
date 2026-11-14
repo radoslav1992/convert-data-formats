@@ -1,0 +1,57 @@
+const d = (y, m, day, h = 0, min = 0) => new Date(Date.UTC(y, m - 1, day, h, min));
+
+export default {
+  slug: 'excel-to-json',
+  title: 'Excel to JSON Converter: XLSX Rows to JSON Objects',
+  description: 'Convert an Excel .xlsx sheet to JSON in your browser. Each row becomes an object keyed by the header row, with typed numbers, booleans and ISO dates.',
+  h1: 'Excel to JSON Converter',
+  lede: 'Open an .xlsx workbook and get one sheet as a JSON array: one object per row, with the first row as keys and Excel\'s own cell types kept.',
+  blurb: 'Rows become objects keyed by the header; cell types are kept and dates become ISO 8601.',
+  samples: [{ label: 'Sample workbook', file: '/samples/orders.xlsx' }],
+  rulesIntro: 'Unlike CSV, a workbook knows the type of each cell, so the JSON keeps those types instead of guessing them.',
+  rules: [
+    ['Row 1 of the sheet', 'The keys of every object (made unique if two headers are the same or one is empty)'],
+    ['Each later row', 'One object in the array'],
+    ['A number cell', 'A JSON number, rounded to Excel\'s 15 significant digits'],
+    ['A text cell', 'A string, even if it holds digits such as 02134'],
+    ['A TRUE or FALSE cell', 'true or false'],
+    ['A date cell', 'A string in ISO 8601: "2024-03-15", or "2024-03-15T13:45:00" with a time'],
+    ['A formula cell', 'Its saved result, typed like any other value'],
+    ['An empty cell', 'null'],
+    ['A row with no values', 'Skipped'],
+    ['Headers with dots (ship.city)', 'A key "ship.city", or a nested object with "Nest dot-path headers"'],
+  ],
+  example: {
+    grid: [['sku', 'qty', 'price', 'in_stock', 'restocked', 'note'], ['LAMP-20', 14, 39.5, true, d(2024, 3, 15), null], ['BULB-E27', 220, 3.25, false, d(2024, 3, 18, 9, 30), 'warm white']],
+    text: 'Numbers and booleans come out typed because the sheet stored them that way. The second date has a time, so it keeps it; the empty note becomes null.',
+  },
+  optionDocs: [
+    { option: 'sheet', text: 'JSON output covers one sheet. The first sheet is used unless you pick another; the note under the tool lists how many sheets the workbook has.', sheets: [['Products', [['sku', 'qty'], ['LAMP-20', 14]]], ['Suppliers', [['name', 'country'], ['Lumo', 'SE']]]], variants: [['Products (first sheet)', {}], ['Suppliers', { sheet: 'Suppliers' }]] },
+    { option: 'header', text: 'Most sheets have a header row. When a sheet starts directly with data, turn this off to get an array of arrays, one per row, in column order.', grid: [['LAMP-20', 14], ['BULB-E27', 220]], variants: [['On (wrong here)', {}], ['Off', { header: false }]] },
+    { option: 'nest', text: 'Headers written as paths, such as dimensions.w and dimensions.h, can rebuild nested objects. This is how the JSON to Excel converter flattens nested data, so the two directions match.', grid: [['sku', 'dimensions.w', 'dimensions.h'], ['LAMP-20', 20, 45]], variants: [['Off', {}], ['On', { nest: true }]] },
+    { option: 'indent', text: 'Pretty-printed JSON is easier to check by eye; minified JSON is smaller for storage and APIs.', grid: [['a', 'b'], [1, 2]], variants: [['2 spaces', {}], ['None', { indent: '0' }]] },
+    { option: 'sortKeys', text: 'Keys normally follow the column order. Sorting them alphabetically makes the output independent of how the columns were arranged.', grid: [['zone', 'city', 'code'], ['EU', 'Rome', 'RM']], variants: [['Off', {}], ['On', { sortKeys: true }]] },
+  ],
+  errors: [
+    { hex: 'd0cf11e0a1b11ae1000000000000000000000000', bytesNote: 'An .xls file (Excel 97-2003 format)', text: 'Only the .xlsx format is read. Save the workbook as .xlsx in Excel or LibreOffice Calc and open that file instead.' },
+    { grid: [['sku', 'sku', ''], ['A-1', 'B-1', 5]], text: 'This is a note. JSON keys should be unique, so the repeated and the empty header are renamed. Give the columns distinct names in Excel to choose the keys yourself.' },
+  ],
+  watch: [
+    'Formatting is not data: a cell showing 15% gives 0.15, and a cell showing $1,200.00 gives 1200.',
+    'Dates become strings, because JSON has no date type. Times are kept, but Excel stores no time zone, so none is added.',
+    'Formulas are not recalculated; the JSON gets the result saved in the file.',
+    'Merged cells give their value once, in the first cell of the merge; the other cells of the merge are null.',
+    'Numbers are kept to 15 significant digits, as Excel stores them. An ID longer than that must be a text cell in Excel to keep every digit.',
+    'Headers that are whole numbers (a year such as 2024) come first in each object, because JavaScript orders such keys first.',
+  ],
+  faq: [
+    ['How do I convert Excel to JSON?', 'Open the .xlsx file or drop it on the left pane. The first sheet is converted at once; choose another sheet in the options if needed. Copy the JSON or download it as a .json file.'],
+    ['Does the first row have to be a header?', 'For an array of objects, yes: row 1 supplies the keys. Turn off "First row is the header" to get arrays of values instead.'],
+    ['How are Excel dates converted to JSON?', 'Cells formatted as dates are written as ISO 8601 strings, such as "2024-03-15". A cell that also has a time gets it after a T: "2024-03-18T09:30:00".'],
+    ['Why is a value null in the JSON?', 'The cell was empty. Every object has every key, so empty cells are written as null rather than left out.'],
+    ['Are the values typed?', 'Yes. Numbers stay numbers, TRUE and FALSE become booleans, and text stays text, as stored in the workbook. Nothing is guessed from the look of the text.'],
+    ['Is the workbook uploaded?', 'No. It is read by JavaScript in this page, on your device.'],
+    ['Can I convert all sheets into one JSON file?', 'Not in one step. Convert each sheet and combine the arrays, for example under one key per sheet.'],
+  ],
+  related: ['excel-to-csv', 'csv-to-json', 'xml-to-json'],
+};

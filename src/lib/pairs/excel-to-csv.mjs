@@ -1,0 +1,56 @@
+const d = (y, m, day) => new Date(Date.UTC(y, m - 1, day));
+
+export default {
+  slug: 'excel-to-csv',
+  title: 'Excel to CSV Converter: XLSX to CSV in Your Browser',
+  description: 'Convert an Excel .xlsx sheet to CSV without uploading it. Pick the sheet; dates become ISO 8601, formulas give their saved values, leading zeros stay.',
+  h1: 'Excel to CSV Converter',
+  lede: 'Open an .xlsx workbook, pick a sheet, and get its cells as CSV: one line per row, with dates written as 2024-03-15.',
+  blurb: 'One sheet at a time; dates as ISO 8601, formulas as their saved values.',
+  samples: [{ label: 'Sample workbook', file: '/samples/orders.xlsx' }],
+  rulesIntro: 'A sheet is already a grid, so rows and columns carry over directly. What needs rules is how each kind of cell is written as text.',
+  rules: [
+    ['Each row of the chosen sheet', 'One CSV line, in the same order'],
+    ['A text cell (including 02134 stored as text)', 'The text, unchanged'],
+    ['A number cell', 'The number with up to 15 significant digits, the precision Excel works with'],
+    ['A date cell', 'ISO 8601: 2024-03-15, or 2024-03-15T13:45:00 when it has a time'],
+    ['A TRUE or FALSE cell', 'true or false'],
+    ['A formula', 'The value Excel saved with the file, not the formula'],
+    ['An empty cell', 'An empty field'],
+    ['A row with no values at all', 'Left out'],
+    ['Merged cells', 'The value in the first cell, empty fields for the rest'],
+    ['Formatting (currency, percent, colors, fonts)', 'Dropped: the stored value is written (15% is 0.15)'],
+    ['Text with commas, quotes or line breaks', 'Quoted as RFC 4180 describes'],
+  ],
+  example: {
+    grid: [['item', 'qty', 'price', 'ordered', 'paid'], ['Desk lamp, small', 2, 39.5, d(2024, 3, 15), true], ['Bulb "warm"', 10, 3.25, d(2024, 3, 16), false]],
+    text: 'The date cells are written in ISO 8601 form, whatever date format the sheet displayed. The comma and the quotes in the item names make those fields quoted.',
+  },
+  optionDocs: [
+    { option: 'sheet', text: 'A CSV file holds one table, so one sheet is converted at a time. The list shows every sheet in the workbook; the first one is chosen when a file is opened.', sheets: [['Orders', [['order', 'total'], ['A-1', 129.99]]], ['Customers', [['name', 'city'], ['Ann', 'Boston']]]], variants: [['Orders (first sheet)', {}], ['Customers', { sheet: 'Customers' }]] },
+    { option: 'outDelimiter', text: 'Use a semicolon when the CSV will be opened by a spreadsheet set to a locale that writes decimals with a comma; it would otherwise split 3,25 into two columns.', grid: [['item', 'price'], ['Bulb', 3.25]], variants: [['Comma', {}], ['Semicolon', { outDelimiter: 'semicolon' }]] },
+    { option: 'bom', text: 'Excel for Windows reads a CSV as UTF-8 only if it starts with a byte order mark. Turn this on if the CSV goes back into Excel and has letters such as ø or ü.', grid: [['city'], ['Tromsø']], variants: [['Off', {}], ['On', { bom: true }]] },
+    { option: 'lineEnding', text: 'Excel itself writes CRLF line endings, as RFC 4180 does. Choose LF for tools on Linux or macOS that expect it.', grid: [['n'], [1], [2]], variants: [['CRLF', {}], ['LF', { lineEnding: 'lf' }]] },
+  ],
+  errors: [
+    { hex: 'd0cf11e0a1b11ae1000000000000000000000000', bytesNote: 'A file starting with the bytes D0 CF 11 E0 (an .xls workbook)', text: 'Workbooks saved as .xls (Excel 97-2003) use an older binary format that this tool does not read. In Excel choose File > Save As > Excel Workbook (.xlsx), then open the new file.' },
+    { bytes: 'id,name\n1,Ann\n', bytesNote: 'A text file renamed to report.xlsx', text: 'The file is not an Excel workbook, even if its name ends in .xlsx. If it is already CSV, there is nothing to convert: open it in the CSV viewer.' },
+  ],
+  watch: [
+    'Formats are not kept. A cell that shows "15%" holds 0.15, and "$1,200.00" holds 1200; the CSV gets the stored value. Dates are the exception: they are written as ISO 8601 dates.',
+    'Formulas are not recalculated. The CSV gets the result Excel saved with the file. A workbook created by a tool that does not calculate may have no saved result, which gives an empty field.',
+    'Only one sheet goes into each CSV file. Convert each sheet separately if you need them all.',
+    'Hidden rows and columns are included, because hiding is formatting.',
+    'Old .xls files and macro workbooks are not read: save them as .xlsx first.',
+  ],
+  faq: [
+    ['How do I convert an Excel file to CSV?', 'Open the .xlsx file with "Open file" or drop it on the left pane, choose the sheet if there are several, and download the CSV.'],
+    ['Is my spreadsheet uploaded?', 'No. The workbook is unzipped and read by JavaScript in your browser. Nothing leaves your device, so it is safe for payroll, customer or other private data.'],
+    ['How are dates converted?', 'Excel stores a date as a number with a date format. The converter recognises date-formatted cells and writes them as ISO 8601 (2024-03-15), which every program reads the same way.'],
+    ['Will formulas be kept?', 'No. CSV holds values only, so each formula cell gives the value Excel last calculated and saved.'],
+    ['How do I convert every sheet?', 'Convert one at a time: choose the next sheet in the Sheet list and download again.'],
+    ['Can it convert .xls files?', 'No, only .xlsx. Open an .xls file in Excel or LibreOffice and save it as .xlsx first.'],
+    ['Why do numbers show more decimals than in Excel?', 'Excel rounds what it displays according to the cell\'s format; the file stores the full number. The CSV gets the stored value, rounded to 15 significant digits like Excel does internally.'],
+  ],
+  related: ['excel-to-json', 'csv-to-json', 'csv-to-tsv'],
+};

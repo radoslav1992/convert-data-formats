@@ -1,0 +1,34 @@
+---
+// Toolbar and one code pane for the XML and YAML editors. Extra toolbar controls go in the "tools" slot,
+// a second pane in the "side" slot.
+import CodePane from './CodePane.astro';
+interface Props { id: string; label: string; value: string; badge: string; status: string; accept: string; stats: string; dataAttr: string; two?: boolean }
+const { id, label, value, badge, status, accept, stats, dataAttr, two = false } = Astro.props;
+const attrs = { [dataAttr]: '' };
+---
+<section class="tool" {...attrs} data-sample={value} aria-label={`${label} editor`}>
+  <div class="toolbar" role="toolbar" aria-label={`${label} actions`}>
+    <slot name="tools" />
+    <span class="sep" aria-hidden="true"></span>
+    <span class="btn small file-btn">Open file<input type="file" data-file accept={accept} aria-label={`Open a ${label} file`} /></span>
+    <button type="button" class="btn small" data-download>Download</button>
+    <button type="button" class="btn small" data-copy>Copy</button>
+    <button type="button" class="btn small" data-sample>Sample</button>
+    <button type="button" class="btn small" data-clear>Clear</button>
+  </div>
+  <div class:list={['editor-panes', { half: two }]}>
+    <div class="pane">
+      <div class="pane-head"><label class="pane-title" for={id}>{label}</label><span class="badge ok" data-badge>{badge}</span></div>
+      <div class="drop" data-drop>
+        <CodePane id={id} value={value} describedBy={`${id}-stats`} tall />
+        <p class="drop-hint" aria-hidden="true">Drop the file to open it</p>
+      </div>
+      <p class="pane-foot" id={`${id}-stats`} data-stats>{stats}</p>
+    </div>
+    <slot name="side" />
+  </div>
+  <div class="tool-status">
+    <p class="status is-ok" role="status" aria-live="polite" data-status>{status}</p>
+    <div data-messages></div>
+  </div>
+</section>
