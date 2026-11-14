@@ -96,3 +96,16 @@ test('round trip keeps every value', () => {
   const v = { s: 'é "q" \\ \n', n: -1.25e-7, b: false, z: null, a: [[], {}], u: '😀' };
   assert.deepEqual(parseJson(serializeJson(v).text).value, v);
 });
+
+import { formatJsonText } from '../src/lib/convert/json.mjs';
+
+test('formatJsonText re-indents without touching numbers or duplicate keys', () => {
+  const text = '{"big": 12345678901234567890, "a": 1, "a": 2, "s": "x, {y}: \\"z\\"", "e": [], "o": {}}';
+  assert.equal(formatJsonText(text), '{\n  "big": 12345678901234567890,\n  "a": 1,\n  "a": 2,\n  "s": "x, {y}: \\"z\\"",\n  "e": [],\n  "o": {}\n}\n');
+  assert.equal(formatJsonText(text, '0'), '{"big":12345678901234567890,"a":1,"a":2,"s":"x, {y}: \\"z\\"","e":[],"o":{}}');
+  assert.equal(formatJsonText('[1,[2]]', 'tab'), '[\n\t1,\n\t[\n\t\t2\n\t]\n]\n');
+});
+
+test('formatJsonText reports errors with a position', () => {
+  assert.throws(() => formatJsonText('{"a":\n  [1,,2]}'), e => e.line === 2 && e.column === 6);
+});

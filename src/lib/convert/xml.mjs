@@ -19,6 +19,8 @@ export function checkXml(text) {
     const { line, column } = lineColumn(text, entity.index);
     return new ConvertError('This document declares entities in its DOCTYPE. Entity declarations are not processed here, for safety (they can expand to huge or private content). Remove the DOCTYPE, or replace each entity with its text.', { line, column, offset: entity.index, format: 'xml', code: 'doctype' });
   }
+  const unquoted = unquotedAttribute(text);
+  if (unquoted) return unquoted;
   const result = XMLValidator.validate(text, { allowBooleanAttributes: false, unpairedTags: [] });
   if (result !== true) {
     const { msg, line, col } = result.err;
@@ -32,6 +34,23 @@ export function checkXml(text) {
   if (bad >= 0) {
     const { line, column } = lineColumn(text, bad);
     return new ConvertError('A bare "&" is not allowed in XML text or attribute values. Write it as &amp; (and < as &lt;).', { line, column, offset: bad, format: 'xml', code: 'syntax' });
+  }
+  return null;
+}
+
+// An attribute value without quotes (price=9.99) is a common slip; say so directly.
+function unquotedAttribute(text) {
+  let offset = 0;
+  for (const token of tokenize(text)) {
+    if (token.type === 'open' || token.type === 'empty') {
+      const m = /\s([A-Za-z_:][\w:.-]*)\s*=\s*(?=[^\s"'])/.exec(token.raw);
+      if (m) {
+        const at = offset + m.index + 1;
+        const { line, column } = lineColumn(text, at);
+        return new ConvertError(`The value of the attribute ${m[1]} is not in quotes. Write ${m[1]}="…" with double or single quotes.`, { line, column, offset: at, format: 'xml', code: 'syntax' });
+      }
+    }
+    offset += token.raw.length;
   }
   return null;
 }
@@ -247,39 +266,48 @@ export function serializeXml(value, options = {}) {
 }
 
 /**
- * Finds the repeated record element for a table: the longest array of elements anywhere in the document
- * (the shallowest one on a tie), or the element named `name` when given.
+ * Finds the repeated record element for a table. Elements are grouped by their path (catalog.book), across
+ * all parents. The records are the path with the most elements among those that repeat, preferring elements
+ * that have attributes or children over plain text, and the shallowest path on a tie. With `name`, the first
+ * path ending in that element name is used instead.
  * @returns {{ records: unknown[], path: string }}
  */
 export function findRecords(value, name = '') {
-  const found = [];
+  const groups = new Map();
+  const add = (path, item, depth, repeated) => {
+    let group = groups.get(path);
+    if (!group) groups.set(path, (group = { path, depth, items: [], repeated: false, objects: 0 }));
+    group.items.push(item);
+    if (repeated) group.repeated = true;
+    if (isPlainObject(item)) group.objects++;
+  };
   const walk = (v, path, depth) => {
-    if (Array.isArray(v)) {
-      found.push({ records: v, path, depth });
-      v.forEach(item => walk(item, path, depth + 1));
-      return;
-    }
-    if (isPlainObject(v)) for (const [key, child] of Object.entries(v)) {
+    if (!isPlainObject(v)) return;
+    for (const [key, child] of Object.entries(v)) {
       if (key.startsWith('@') || key === '#text') continue;
-      if (!Array.isArray(child) && isPlainObject(child)) found.push({ records: [child], path: path ? `${path}.${key}` : key, depth: depth + 1, single: true });
-      walk(child, path ? `${path}.${key}` : key, depth + 1);
+      const p = path ? `${path}.${key}` : key;
+      if (Array.isArray(child)) {
+        for (const item of child) { add(p, item, depth + 1, child.length > 1); walk(item, p, depth + 1); }
+      } else {
+        add(p, child, depth + 1, false);
+        walk(child, p, depth + 1);
+      }
     }
   };
   walk(value, '', 0);
+  const all = [...groups.values()];
   if (name) {
-    const match = found.find(f => f.path.split('.').at(-1) === name);
+    const match = all.find(g => g.path.split('.').at(-1) === name);
     if (!match) throw new ConvertError(`There is no element named <${name}> to use as the record. Check the spelling (names are case-sensitive), or leave the field empty to find it automatically.`, { code: 'record', format: 'xml' });
-    return { records: match.records, path: match.path };
+    return { records: match.items, path: match.path };
   }
-  const arrays = found.filter(f => !f.single && f.records.length > 1);
-  if (arrays.length) {
-    arrays.sort((a, b) => b.records.length - a.records.length || a.depth - b.depth);
-    return { records: arrays[0].records, path: arrays[0].path };
-  }
-  // No element repeats: use the deepest element that still has child elements (one record).
-  const singles = found.filter(f => f.single).sort((a, b) => b.depth - a.depth);
-  const leafy = singles.find(f => Object.values(f.records[0]).some(v => v === null || typeof v !== 'object'));
-  if (leafy) return { records: leafy.records, path: leafy.path };
+  const rank = list => list.sort((a, b) => b.items.length - a.items.length || a.depth - b.depth)[0];
+  const repeated = all.filter(g => g.repeated && g.items.length > 1);
+  const best = rank(repeated.filter(g => g.objects * 2 >= g.items.length)) ?? rank(repeated);
+  if (best) return { records: best.items, path: best.path };
+  // Nothing repeats: one record, the deepest element that holds plain values.
+  const single = all.filter(g => g.objects && g.items.some(item => isPlainObject(item) && Object.values(item).some(x => x === null || typeof x !== 'object'))).sort((a, b) => b.depth - a.depth)[0];
+  if (single) return { records: single.items.filter(isPlainObject), path: single.path };
   return { records: [value], path: '' };
 }
 

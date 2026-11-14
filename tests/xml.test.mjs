@@ -116,3 +116,11 @@ test('format keeps spaces inside attribute values', () => {
 test('minify removes whitespace between tags only', () => {
   assert.equal(minifyXml('<a>\n  <b> x </b>\n  <p>Hi <i>you</i></p>\n</a>'), '<a><b>x</b><p>Hi <i>you</i></p></a>');
 });
+
+test('an unquoted attribute value is reported as such', () => {
+  const error = checkXml('<a>\n  <item price=9.99>Lamp</item>\n</a>');
+  assert.equal(error.line, 2);
+  assert.equal(error.column, 9);
+  assert.match(error.message, /attribute price is not in quotes/);
+  assert.equal(checkXml('<a b = "1" c=\'2\'/>'), null);
+});

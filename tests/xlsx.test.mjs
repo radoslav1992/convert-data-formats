@@ -77,3 +77,15 @@ test('csv to excel keeps leading zeros as text and numbers as numbers', async ()
   const back = await readWorkbook(out.bytes);
   assert.deepEqual(back[0].data, [['zip', 'n'], ['007', 12]]);
 });
+
+test('csv to excel keeps numbers with more than 15 digits as text', async () => {
+  const out = await convert('csv', 'xlsx', 'card,n\n4111111111111111,123456789012345\n');
+  const back = await readWorkbook(out.bytes);
+  assert.deepEqual(back[0].data[1], ['4111111111111111', 123456789012345]);
+});
+
+test('json to excel writes numbers longer than 15 digits as text', async () => {
+  const out = await convert('json', 'xlsx', '[{"id": 4111111111111111, "n": 1.5}]');
+  const back = await readWorkbook(out.bytes);
+  assert.deepEqual(back[0].data[1], ['4111111111111111', 1.5]);
+});

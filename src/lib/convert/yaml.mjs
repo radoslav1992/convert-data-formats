@@ -3,23 +3,38 @@
 import { parseAllDocuments, Document, visit, Scalar, isMap, isSeq } from 'yaml';
 import { ConvertError, emptyInput, stripBom } from './errors.mjs';
 
-// Strings a YAML 1.1 reader (PyYAML, older libraries) would read as booleans.
+// Strings a YAML 1.1 reader (PyYAML, older libraries) would read as something else: booleans (yes, no, on,
+// off, y, n), timestamps (2024-03-15) and base-60 numbers (1:20). YAML 1.2 reads them all as strings.
 export const YAML11_BOOLEANS = /^(?:y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)$/;
+export const YAML11_SPECIAL = /^(?:y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF|\d{4}-\d\d?-\d\d?(?:(?:[Tt]|[ \t]+)\d\d?:\d\d:\d\d(?:\.\d*)?(?:[ \t]*(?:Z|[-+]\d\d?(?::\d\d)?))?)?|[-+]?\d[\d_]*(?::[0-5]?\d)+(?:\.[\d_]*)?)$/;
 
-function toError(error, text) {
+function toError(error) {
   const pos = error.linePos?.[0];
-  const message = String(error.message).split('\n')[0].replace(/ at line \d+, column \d+:?$/, '');
-  const hint = HINTS[error.code];
-  return new ConvertError(hint ? `${message}. ${hint}` : message.endsWith('.') ? message : `${message}.`, { line: pos?.line, column: pos?.col, offset: error.pos?.[0], format: 'yaml', code: 'syntax' });
+  const raw = String(error.message).split('\n')[0].replace(/ at line \d+, column \d+:?$/, '');
+  return new ConvertError(plainYamlMessage(raw), { line: pos?.line, column: pos?.col, offset: error.pos?.[0], format: 'yaml', code: 'syntax' });
 }
 
-const HINTS = {
-  TAB_AS_INDENT: 'YAML indentation must use spaces, not tabs.',
-  BAD_INDENT: 'Check that items at the same level line up with the same number of spaces.',
-  DUPLICATE_KEY: 'Each key can appear only once in a mapping.',
-  MISSING_CHAR: 'A key needs a colon and a space before its value, as in "name: value".',
-  MULTILINE_IMPLICIT_KEY: 'A key must fit on one line; check for a missing colon or a stray line.',
-};
+// The yaml library's messages, said plainly, with what to do.
+const YAML_MESSAGES = [
+  [/^Missing closing (["'])quote/, (_, q) => `A ${q === '"' ? 'double' : 'single'}-quoted string is never closed. Add the closing ${q}.`],
+  [/^Tabs are not allowed as indentation/, () => 'Tabs are not allowed for indentation in YAML. Use spaces.'],
+  [/^Map keys must be unique/, () => 'This key already appears in the same mapping. Each key can appear only once.'],
+  [/^Nested mappings are not allowed in compact mappings/, () => 'YAML reads this value as the start of another mapping: it contains ": ", or the next line is indented further than its neighbours. Put the value in quotes, or line up the keys.'],
+  [/^Implicit keys need to be on a single line/, () => 'A key must be on one line and followed by ": ". Check for a missing colon, or a line indented differently from the keys around it.'],
+  [/^Implicit map keys need to be followed by map values/, () => 'A key needs a colon and a space before its value, as in "name: value".'],
+  [/^A block sequence may not be used as an implicit map key/, () => 'A list item ("- ") is indented differently from the items before it. Line up the dashes of one list.'],
+  [/^Flow (sequence|map) in block collection must be sufficiently indented and end with an? ([\]}])/, (_, kind, close) => `A ${kind === 'sequence' ? '[ … ] list' : '{ … } mapping'} is not closed. Add the missing "${close}", or indent its continuation lines.`],
+  [/^Plain value cannot start with reserved character (.)/, (_, c) => `A value cannot start with "${c}" unless it is quoted. Put the value in quotes.`],
+  [/^Unexpected .* (token|at node end)/, () => 'Unexpected text here. Check the indentation, and that each line is "key: value" or "- item".'],
+];
+
+export function plainYamlMessage(raw) {
+  for (const [re, fn] of YAML_MESSAGES) {
+    const m = re.exec(raw);
+    if (m) return fn(...m);
+  }
+  return raw.endsWith('.') ? raw : `${raw}.`;
+}
 
 /**
  * Parses a YAML stream.
@@ -33,11 +48,11 @@ export function parseYaml(input, options = {}) {
   const docs = parseAllDocuments(text, { merge: options.merge !== false, uniqueKeys: true, prettyErrors: true });
   // parseAllDocuments returns an EmptyStream (not an array) when the text holds only comments.
   const list = Array.isArray(docs) ? docs : [];
-  for (const doc of list) if (doc.errors.length) throw toError(doc.errors[0], text);
+  for (const doc of list) if (doc.errors.length) throw toError(doc.errors[0]);
   const warnings = [];
   for (const doc of list) for (const w of doc.warnings) {
     const pos = w.linePos?.[0];
-    warnings.push(`${pos ? `Line ${pos.line}, column ${pos.col}: ` : ''}${String(w.message).split('\n')[0]}`);
+    warnings.push(`${pos ? `Line ${pos.line}, column ${pos.col}: ` : ''}${String(w.message).split('\n')[0].replace(/ at line \d+, column \d+:?$/, '')}${w.code === 'TAG_RESOLVE_FAILED' ? '. The tag is ignored and the value is kept as plain data.' : ''}`);
   }
   let values;
   try {
@@ -69,7 +84,7 @@ export function serializeYaml(value, options = {}) {
     const doc = new Document(normalize(v), { version: '1.2' });
     if (quote) {
       visit(doc, {
-        Scalar(key, node) { if (typeof node.value === 'string' && YAML11_BOOLEANS.test(node.value)) node.type = Scalar.QUOTE_DOUBLE; },
+        Scalar(key, node) { if (typeof node.value === 'string' && YAML11_SPECIAL.test(node.value)) node.type = Scalar.QUOTE_DOUBLE; },
       });
     }
     return doc.toString({ indent, lineWidth: 0, minContentWidth: 0 });
@@ -97,7 +112,7 @@ export function formatYaml(input, options = {}) {
   if (!text.trim()) throw emptyInput('yaml');
   const docs = parseAllDocuments(text, { uniqueKeys: true });
   const list = Array.isArray(docs) ? docs : [];
-  for (const doc of list) if (doc.errors.length) throw toError(doc.errors[0], text);
+  for (const doc of list) if (doc.errors.length) throw toError(doc.errors[0]);
   const indent = Number(options.indent ?? 2) || 2;
   return list.map((doc, i) => {
     const out = doc.toString({ indent, lineWidth: 0 });

@@ -19,7 +19,8 @@ async function bytesOf(input) {
 
 /** Excel dates as ISO 8601: "2024-03-15" for a date alone, "2024-03-15T13:45:00" with a time. */
 export function isoDate(date) {
-  const iso = date.toISOString();
+  // Excel stores times as fractions of a day, so a time read back can be a millisecond off: round to the second.
+  const iso = new Date(Math.round(date.getTime() / 1000) * 1000).toISOString();
   if (iso.endsWith('T00:00:00.000Z')) return iso.slice(0, 10);
   return iso.replace(/\.000Z$/, '').replace(/Z$/, '');
 }
@@ -115,7 +116,8 @@ export async function serializeXlsx(value, options = {}) {
   let cut = 0;
   const cell = v => {
     if (v === null || v === undefined || v === '') return null;
-    if (typeof v === 'number') return Number.isFinite(v) ? v : String(v);
+    // Excel keeps 15 significant digits; a longer number is written as text so no digit changes.
+    if (typeof v === 'number') return Number.isFinite(v) && String(v).replace(/^-|\.|e.*$/gi, '').replace(/^0+/, '').length <= 15 ? v : String(v);
     if (typeof v === 'boolean') return v;
     let text = typeof v === 'bigint' ? v.toString() : String(v);
     if (text.length > MAX_CELL) { text = text.slice(0, MAX_CELL); cut++; }
@@ -129,7 +131,8 @@ export async function serializeXlsx(value, options = {}) {
     return { width: Math.min(Math.max(w + 2, 8), 60) };
   });
   if (cut) warnings.push(`${cut} cell${cut === 1 ? ' was' : 's were'} longer than Excel's limit of 32,767 characters and ${cut === 1 ? 'was' : 'were'} cut.`);
-  const blob = await writeXlsxFile(data, { sheet: sheetName(options.sheetName), columns: widths, stickyRowsCount: 1 }).toBlob();
+  const sheet = sheetName(options.sheetName);
+  const blob = await writeXlsxFile(data, { sheet, columns: widths, stickyRowsCount: 1 }).toBlob();
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  return { blob, bytes, warnings, table };
+  return { blob, bytes, warnings, table, sheet };
 }

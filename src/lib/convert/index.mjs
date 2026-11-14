@@ -66,6 +66,13 @@ export async function serialize(format, value, options = {}) {
   }
 }
 
+// Excel keeps 15 significant digits, so a longer number is written as text to keep every digit.
+function excelValue(text) {
+  const value = inferValue(text);
+  if (typeof value === 'number' && text.replace(/^-|\.|e.*$/gi, '').replace(/^0+/, '').length > 15) return text;
+  return value;
+}
+
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const byteLength = input => (typeof input === 'string' ? new TextEncoder().encode(input).length : input?.byteLength ?? input?.size ?? 0);
 
@@ -98,10 +105,17 @@ export async function convert(from, to, input, options = {}) {
       grid = result.rows;
       meta = { delimiter: result.delimiter, delimiterName: { ',': 'comma', ';': 'semicolon', '\t': 'tab', '|': 'pipe' }[result.delimiter], bom: result.bom };
       warnings.push(...result.warnings);
-      if (to === 'xlsx' && options.inferTypes !== false) grid = grid.map((row, r) => (r === 0 ? row : row.map(cell => (cell === '' ? null : inferValue(cell)))));
+      if (to === 'xlsx' && options.inferTypes !== false) grid = grid.map((row, r) => (r === 0 ? row : row.map(cell => (cell === '' ? null : excelValue(cell)))));
     }
     const width = Math.max(0, ...grid.map(r => r.length));
     const [head = [], ...body] = grid;
+    if (from !== 'xlsx') {
+      const ragged = body.map((r, i) => [i + 2, r.length]).filter(([, n]) => n !== head.length);
+      if (ragged.length) {
+        const list = ragged.slice(0, 5).map(([row, n]) => `row ${row} has ${n}`).join(', ');
+        warnings.push(`${ragged.length} row${ragged.length === 1 ? '' : 's'} ${ragged.length === 1 ? 'does' : 'do'} not have ${head.length} field${head.length === 1 ? '' : 's'} like the header (${list}${ragged.length > 5 ? ', …' : ''}). ${ragged.length === 1 ? 'It is' : 'They are'} copied as ${ragged.length === 1 ? 'it is' : 'they are'}; missing cells are empty.`);
+      }
+    }
     table = { columns: Array.from({ length: width }, (_, i) => head[i] ?? ''), rows: body.map(r => Array.from({ length: width }, (_, i) => r[i] ?? null)) };
     meta.rows = body.length;
     meta.columns = width;
@@ -119,7 +133,7 @@ export async function convert(from, to, input, options = {}) {
     const { findRecords } = await load.xml();
     const { records, path } = findRecords(value, String(options.recordName ?? '').trim());
     if (path) warnings.push(`Each <${path.split('.').at(-1)}> element is one row (${records.length} found at ${path.split('.').join(' › ')}).`);
-    value = records;
+    value = sameShape(records);
   }
 
   if (TABULAR.has(from) && to === 'xml') {
@@ -141,7 +155,33 @@ export async function convert(from, to, input, options = {}) {
   return finish(out, warnings, input, start, meta, out.table);
 }
 
+// In XML, an element that occurs once looks like a value and twice like a list. Within one table, a child
+// that is a list in any record is made a list in every record, so all rows get the same columns.
+function sameShape(records) {
+  const lists = new Set();
+  const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const scan = (v, path) => {
+    if (!isObj(v)) return;
+    for (const [k, c] of Object.entries(v)) {
+      const p = `${path}.${k}`;
+      if (Array.isArray(c)) { lists.add(p); c.forEach(i => scan(i, p)); } else scan(c, p);
+    }
+  };
+  const fix = (v, path) => {
+    if (!isObj(v)) return v;
+    const out = {};
+    for (const [k, c] of Object.entries(v)) {
+      const p = `${path}.${k}`;
+      out[k] = Array.isArray(c) ? c.map(i => fix(i, p)) : lists.has(p) ? [fix(c, p)] : fix(c, p);
+    }
+    return out;
+  };
+  records.forEach(r => scan(r, ''));
+  return lists.size ? records.map(r => fix(r, '')) : records;
+}
+
 function finish(out, warnings, input, start, meta, table) {
+  if (out.sheet) meta = { ...meta, sheetName: out.sheet };
   const outputBytes = out.bytes ? out.bytes.byteLength : byteLength(out.text ?? '');
   return {
     text: out.text,

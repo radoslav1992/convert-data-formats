@@ -17,8 +17,8 @@ test('integers beyond 2^53 are kept exactly as BigInt', () => {
 });
 
 test('errors carry a line and column', () => {
-  assert.throws(() => parseToml('a = 1\na = 2'), e => e.line === 2 && /redefine/.test(e.message));
-  assert.throws(() => parseToml('[x]\nb = "open'), e => e.line === 2 && /unfinished string/i.test(e.message));
+  assert.throws(() => parseToml('a = 1\na = 2'), e => e.line === 2 && /already defined/.test(e.message));
+  assert.throws(() => parseToml('[x]\nb = "open'), e => e.line === 2 && /never closed|not closed/i.test(e.message));
   assert.throws(() => parseToml('a = 1 b = 2'), e => e.line === 1 && e.column === 7);
   assert.throws(() => parseToml('a = '), e => e.line === 1);
 });

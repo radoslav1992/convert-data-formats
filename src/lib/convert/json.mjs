@@ -229,3 +229,46 @@ export function serializeJson(value, options = {}) {
   }, indent) ?? 'null';
   return { text: bigints.length ? text.replace(/"\\u0000bigint:(\d+)"/g, (_, k) => bigints[Number(k)]) : text, warnings };
 }
+
+/**
+ * Re-indents valid JSON text without parsing it into JavaScript values, so numbers keep every digit and
+ * duplicate keys stay as written. indent: '2', '4', 'tab' or '0' (minified).
+ */
+export function formatJsonText(input, indent = '2') {
+  const [text] = stripBom(String(input ?? ''));
+  const { error } = scanJson(text);
+  if (error) {
+    const { line, column } = lineColumn(text, error.offset);
+    throw new ConvertError(error.message, { line, column, offset: error.offset, format: 'json' });
+  }
+  const unit = INDENTS[String(indent)] ?? 2;
+  const pad = typeof unit === 'number' ? ' '.repeat(unit) : unit;
+  const pretty = pad !== '' && unit !== 0;
+  let out = '';
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j;
+      continue;
+    }
+    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') continue;
+    if (!pretty) { out += ch; continue; }
+    if (ch === '{' || ch === '[') {
+      let k = i + 1;
+      while (' \t\n\r'.includes(text[k])) k++;
+      if (text[k] === (ch === '{' ? '}' : ']')) { out += ch + text[k]; i = k; continue; }
+      depth++;
+      out += ch + '\n' + pad.repeat(depth);
+    } else if (ch === '}' || ch === ']') {
+      depth--;
+      out += '\n' + pad.repeat(depth) + ch;
+    } else if (ch === ',') out += ',\n' + pad.repeat(depth);
+    else if (ch === ':') out += ': ';
+    else out += ch;
+  }
+  return pretty ? out + '\n' : out;
+}

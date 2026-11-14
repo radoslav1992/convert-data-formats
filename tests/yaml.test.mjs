@@ -71,3 +71,14 @@ test('format keeps comments', () => {
 test('format keeps several documents', () => {
   assert.equal(formatYaml('a: 1\n---\nb: 2\n'), 'a: 1\n---\nb: 2\n');
 });
+
+test('serialize: dates and base-60 numbers are quoted for YAML 1.1 readers', () => {
+  assert.equal(serializeYaml({ d: '2024-03-15', t: '1:20', ok: '2024-3-15 extra' }).text, 'd: "2024-03-15"\nt: "1:20"\nok: 2024-3-15 extra\n');
+  assert.equal(serializeYaml({ d: '2024-03-15' }, { quoteYaml11: false }).text, 'd: 2024-03-15\n');
+});
+
+test('unknown tags are reported and the value kept', () => {
+  const { value, warnings } = parseYaml('bucket: !Ref MyBucket');
+  assert.deepEqual(value, { bucket: 'MyBucket' });
+  assert.match(warnings[0], /Line 1, column 9: Unresolved tag: !Ref\. The tag is ignored/);
+});
