@@ -20,7 +20,8 @@ const rows: [string, string, string, string, string][] = [
     </div>
     <h2>The formats at a glance</h2>
     <div class="table-wrap">
-      <table>
+      <table class="glance">
+        <colgroup><col style="width:13%" /><col style="width:22%" /><col style="width:17%" /><col style="width:36%" /><col style="width:12%" /></colgroup>
         <thead><tr><th scope="col">Format</th><th scope="col">Defined by</th><th scope="col">Nesting</th><th scope="col">Data types</th><th scope="col">Comments</th></tr></thead>
         <tbody>{rows.map(([name, std, nest, types, comments]) => <tr><th scope="row">{name}</th><td>{std}</td><td>{nest}</td><td>{types}</td><td>{comments}</td></tr>)}</tbody>
       </table>
@@ -39,3 +40,7 @@ const rows: [string, string, string, string, string][] = [
     <ul class="tool-list">{GUIDES.map(guide => <li><a href={`/formats/${guide.id}`}><strong>{guide.fullName}</strong><span>{guide.blurb}</span></a></li>)}</ul>
   </div>
 </Layout>
+<style>
+  /* Fixed column widths: the table's layout does not depend on the font, so it cannot jump when the web font loads. */
+  .glance { table-layout: fixed; min-width: 760px; }
+</style>

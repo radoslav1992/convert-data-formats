@@ -5,11 +5,13 @@
 /* Local fonts sized to the width of the web fonts, so text keeps its line breaks when IBM Plex arrives.
    size-adjust is the web font's average width on this site's text divided by the local font's, measured in
    Chromium (see README, "Fonts"). Liberation Sans and Arimo have Arial's widths; Liberation Mono and Cousine
-   have Courier New's. Every monospace font here is 0.6 em wide, so the mono fallback needs no adjustment. */
-@font-face { font-family: 'Plex Sans Fallback'; font-weight: 400; src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('Arimo'); size-adjust: 100.6%; }
-@font-face { font-family: 'Plex Sans Fallback'; font-weight: 600; src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('Arimo Bold'); size-adjust: 98.4%; }
-@font-face { font-family: 'Plex Mono Fallback'; font-weight: 400; src: local('Courier New'), local('CourierNewPSMT'), local('Liberation Mono'), local('Cousine'); size-adjust: 100%; }
-@font-face { font-family: 'Plex Mono Fallback'; font-weight: 500; src: local('Courier New Bold'), local('CourierNewPS-BoldMT'), local('Liberation Mono Bold'), local('Cousine Bold'); size-adjust: 100%; }
+   have Courier New's. Every monospace font here is 0.6 em wide, so the mono fallback needs no width change.
+   The ascent and descent overrides give the fallbacks IBM Plex's vertical metrics (1.025 em and 0.275 em,
+   divided by size-adjust), so text sits on the same lines before and after the swap. */
+@font-face { font-family: 'Plex Sans Fallback'; font-weight: 400; src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('Arimo'); size-adjust: 99.8%; ascent-override: 102.7%; descent-override: 27.6%; line-gap-override: 0%; }
+@font-face { font-family: 'Plex Sans Fallback'; font-weight: 600; src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('Arimo Bold'); size-adjust: 96.6%; ascent-override: 106.1%; descent-override: 28.5%; line-gap-override: 0%; }
+@font-face { font-family: 'Plex Mono Fallback'; font-weight: 400; src: local('Courier New'), local('CourierNewPSMT'), local('Liberation Mono'), local('Cousine'); size-adjust: 100%; ascent-override: 102.5%; descent-override: 27.5%; line-gap-override: 0%; }
+@font-face { font-family: 'Plex Mono Fallback'; font-weight: 500; src: local('Courier New Bold'), local('CourierNewPS-BoldMT'), local('Liberation Mono Bold'), local('Cousine Bold'); size-adjust: 100%; ascent-override: 102.5%; descent-override: 27.5%; line-gap-override: 0%; }
 
 :root {
   --bg: #f3f5f2;
@@ -105,7 +107,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .main-nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: .95rem; }
 .main-nav a:hover { background: var(--surface-2); }
 .main-nav a[aria-current='page'] { box-shadow: inset 0 -3px 0 var(--accent); font-weight: 600; }
-@media (max-width: 699px) { .nav-long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .main-nav a { padding: 6px 8px; } }
+/* On narrow screens the menu is a fixed grid of two rows, so the web font arriving can never re-wrap it. */
+@media (max-width: 699px) {
+  .nav-long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .main-nav { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; width: calc(100% + 20px); }
+  .main-nav a { padding: 6px 10px; }
+}
 
 /* Shared blocks */
 .page-intro { padding: 20px 0 6px; max-width: 860px; }

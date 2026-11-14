@@ -71,13 +71,15 @@ export function initTextEditor(root: HTMLElement, config: EditorConfig) {
     return result;
   }
 
-  const save = debounce(() => {
+  const saveNow = () => {
     try {
       const text = area.textarea.value;
       if (text.length <= 1_000_000) localStorage.setItem(config.storageKey, text);
       else localStorage.removeItem(config.storageKey);
     } catch { /* Storage full or blocked. */ }
-  }, 500);
+  };
+  const save = debounce(saveNow, 500);
+  window.addEventListener('pagehide', () => { if (edited) saveNow(); });
 
   function replace(text: string, message: string) {
     area.textarea.value = text;
@@ -120,7 +122,7 @@ export function initTextEditor(root: HTMLElement, config: EditorConfig) {
     say('Cleared, and removed the saved copy from this browser.');
     area.textarea.focus();
   });
-  $('[data-sample]').addEventListener('click', () => replace(root.dataset.sample ?? '', 'Loaded the sample.'));
+  $('[data-sample]').addEventListener('click', () => replace(root.dataset.sampleText ?? '', 'Loaded the sample.'));
 
   try {
     const saved = localStorage.getItem(config.storageKey);
@@ -129,7 +131,7 @@ export function initTextEditor(root: HTMLElement, config: EditorConfig) {
       area.refresh();
       validate();
       say('Restored the text you were editing last time (kept in this browser only). Clear removes it.');
-    } else if (area.textarea.value !== root.dataset.sample) validate();
+    } else if (area.textarea.value !== root.dataset.sampleText) validate();
   } catch { /* Storage blocked. */ }
 
   return { area, replace, validate, say } as { area: CodeArea; replace: (t: string, m: string) => void; validate: () => Check; say: (t: string) => void };

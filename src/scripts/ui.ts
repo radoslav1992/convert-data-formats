@@ -80,7 +80,8 @@ export function showCode(view: HTMLElement, text: string, maxLines = 1000, maxCh
     lineCount++;
     if (lineCount >= maxLines) { shown = shown.slice(0, index); cut = true; break; }
   }
-  if (cut) shown = shown.slice(0, shown.lastIndexOf('\n') > 0 ? shown.lastIndexOf('\n') : shown.length);
+  // When the text was cut by length, drop the partial last line.
+  if (cut && lineCount < maxLines) shown = shown.slice(0, shown.lastIndexOf('\n') > 0 ? shown.lastIndexOf('\n') : shown.length);
   const display = shown.replace(/\n$/, '');
   code.textContent = display;
   const count = countLines(display);

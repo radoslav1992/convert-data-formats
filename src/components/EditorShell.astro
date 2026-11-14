@@ -6,7 +6,7 @@ interface Props { id: string; label: string; value: string; badge: string; statu
 const { id, label, value, badge, status, accept, stats, dataAttr, two = false } = Astro.props;
 const attrs = { [dataAttr]: '' };
 ---
-<section class="tool" {...attrs} data-sample={value} aria-label={`${label} editor`}>
+<section class="tool" {...attrs} data-sample-text={value} aria-label={`${label} editor`}>
   <div class="toolbar" role="toolbar" aria-label={`${label} actions`}>
     <slot name="tools" />
     <span class="sep" aria-hidden="true"></span>

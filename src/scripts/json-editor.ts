@@ -178,13 +178,16 @@ export function initJsonEditor(root: HTMLElement) {
     }
   }
 
-  const save = debounce(() => {
+  const saveNow = () => {
     try {
       const text = data.textarea.value;
       if (text.length <= MAX_SAVE) localStorage.setItem(KEY, text);
       else localStorage.removeItem(KEY);
     } catch { /* Storage can be full or blocked; the editor still works. */ }
-  }, 500);
+  };
+  const save = debounce(saveNow, 500);
+  // Leaving the page within half a second of a change still keeps it.
+  window.addEventListener('pagehide', () => { if (edited) saveNow(); });
 
   const later = debounce(validate, 200);
   data.textarea.addEventListener('input', () => { edited = true; later(); save(); });
@@ -269,7 +272,7 @@ export function initJsonEditor(root: HTMLElement) {
     say('Cleared, and removed the saved copy from this browser.');
     data.textarea.focus();
   });
-  $('[data-sample]').addEventListener('click', () => replace(root.dataset.sample ?? '', 'Loaded the sample.'));
+  $('[data-sample]').addEventListener('click', () => replace(root.dataset.sampleText ?? '', 'Loaded the sample.'));
   $('[data-schema-clear]').addEventListener('click', () => { schema.textarea.value = ''; schema.refresh(); checkSchema(); say('Removed the schema.'); });
   $('[data-schema-sample]').addEventListener('click', () => { schema.textarea.value = root.dataset.schema ?? ''; schema.refresh(); checkSchema(); say('Loaded the sample schema.'); });
 
@@ -284,5 +287,5 @@ export function initJsonEditor(root: HTMLElement) {
       return;
     }
   } catch { /* Storage blocked: start with the sample. */ }
-  if (data.textarea.value !== root.dataset.sample) validate();
+  if (data.textarea.value !== root.dataset.sampleText) validate();
 }

@@ -18,10 +18,10 @@ const version = (name: string) => (pkg.dependencies as Record<string, string>)[n
   <div class="wrap prose">
     <div class="page-intro">
       <h1>About this site</h1>
-      <p class="lede">{site.name} is a set of free tools for people who work with data files: developers, analysts, office workers and students.</p>
+      <p class="lede">Free tools for anyone who works with data files.</p>
     </div>
     <h2>Your files stay on your device</h2>
-    <p>Every converter, editor and viewer here runs as JavaScript in your browser. When you open a file, your browser reads it from your disk and the conversion happens on your device. There is no upload step and no server that receives your data, so the tools are safe to use with private or confidential files. The <a href="/privacy">privacy page</a> lists the little that is collected about visits.</p>
+    <p>The site is made for developers, analysts, office workers and students. Every converter, editor and viewer here runs as JavaScript in your browser. When you open a file, your browser reads it from your disk and the conversion happens on your device. There is no upload step and no server that receives your data, so the tools are safe to use with private or confidential files. The <a href="/privacy">privacy page</a> lists the little that is collected about visits.</p>
     <h2>How the tools are built</h2>
     <p>The site is a static website: plain HTML pages with small scripts, served by Cloudflare. Each page shows a working sample before any script runs; the sample was converted by the same code when the site was built. The libraries for a format load only when a page needs them, so the Excel libraries, for example, are fetched only when you work with a workbook.</p>
     <p>The conversion rules are written down on each converter's page, and every rule is covered by automated tests: quoted CSV fields, byte order marks, duplicate headers, YAML 1.2 booleans, XML escaping and name rules, TOML's lack of null, Excel dates, and many more.</p>
