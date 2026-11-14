@@ -1,0 +1,67 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { GUIDES, guideById } from '../../lib/guides.mjs';
+import { PAIRS } from '../../lib/pairs.mjs';
+import { EDITORS } from '../../lib/tools.mjs';
+
+export function getStaticPaths() {
+  return GUIDES.map(guide => ({ params: { format: guide.id }, props: { id: guide.id } }));
+}
+const guide = guideById(Astro.props.id);
+const converters = PAIRS.filter(pair => pair.from === guide.id || pair.to === guide.id);
+const editor = { json: 'json-editor', xml: 'xml-editor', yaml: 'yaml-editor', csv: 'csv-viewer', tsv: 'csv-viewer' }[guide.id];
+const editorTool = EDITORS.find(tool => tool.slug === editor);
+const others = GUIDES.filter(g => g.id !== guide.id);
+---
+<Layout title={guide.title} description={guide.description} section="Formats" crumbs={[['Formats', '/formats'], [guide.name]]}>
+  <div class="wrap prose">
+    <div class="page-intro">
+      <span class="eyebrow">Format guide</span>
+      <h1>{guide.fullName}</h1>
+      <p class="lede">{guide.lede}</p>
+    </div>
+    <dl class="facts">
+      <div><dt>Media type</dt><dd><code>{guide.mediaType}</code></dd></div>
+      <div><dt>File extensions</dt><dd>{guide.extensions}</dd></div>
+    </dl>
+
+    <h2>The standard</h2>
+    <p>{guide.standard}</p>
+
+    <h2>Syntax rules</h2>
+    <ul>{guide.syntax.map(rule => <li>{rule}</li>)}</ul>
+    <figure class="guide-example">
+      <figcaption class="snippet-label">Example</figcaption>
+      <pre class="snippet">{guide.example.replace(/\n$/, '')}</pre>
+    </figure>
+    <p>{guide.exampleNote}</p>
+
+    <h2>Data types</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Type</th><th scope="col">How it is written</th></tr></thead>
+        <tbody>{guide.types.map(([type, how]) => <tr><th scope="row">{type}</th><td>{how}</td></tr>)}</tbody>
+      </table>
+    </div>
+
+    <h2>Pitfalls</h2>
+    <ul>{guide.pitfalls.map(item => <li>{item}</li>)}</ul>
+
+    <h2>When to use {guide.name}</h2>
+    {guide.whenToUse.map(p => <p>{p}</p>)}
+
+    <h2>Converters for {guide.name}</h2>
+    <ul class="tool-list">{converters.map(pair => <li><a href={`/${pair.slug}`}><strong>{pair.name}</strong><span>{pair.blurb}</span></a></li>)}</ul>
+    {editorTool && <p>To check or edit {guide.name} itself, use the <a href={`/${editorTool.slug}`}>{editorTool.name}</a>.</p>}
+
+    <h2>Other format guides</h2>
+    <p>{others.map((g, i) => <Fragment>{i > 0 && ', '}<a href={`/formats/${g.id}`}>{g.name}</a></Fragment>)}</p>
+  </div>
+</Layout>
+<style>
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0 0 8px; }
+  .facts div { display: flex; gap: 8px; align-items: baseline; }
+  .facts dt { font: 500 .78rem/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .facts dd { margin: 0; overflow-wrap: anywhere; }
+  .guide-example { margin: 0 0 1em; }
+</style>

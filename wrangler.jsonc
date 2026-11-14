@@ -1,0 +1,11 @@
+{
+  // Cloudflare Workers static assets: `npm run build` writes the site to ./dist, served as-is.
+  // URLs have no trailing slash (/json-editor serves json-editor.html); /json-editor/ redirects to it.
+  "name": "convert-data-formats",
+  "compatibility_date": "2026-10-26",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}

@@ -1,0 +1,41 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { site } from '../lib/site.mjs';
+import pkg from '../../package.json';
+
+const libs: [string, string, string][] = [
+  ['papaparse', 'CSV and TSV', 'Reads and writes delimited text, with RFC 4180 quoting and delimiter detection.'],
+  ['yaml', 'YAML', 'A YAML 1.2 parser and writer that reports errors with their position and keeps comments when formatting.'],
+  ['fast-xml-parser', 'XML', 'Parses, checks and writes XML; entity expansion from a DOCTYPE is refused before parsing.'],
+  ['smol-toml', 'TOML', 'A TOML 1.0.0 parser and writer.'],
+  ['read-excel-file', 'Excel (reading)', 'Reads cell values from .xlsx workbooks in the browser.'],
+  ['write-excel-file', 'Excel (writing)', 'Writes .xlsx workbooks in the browser.'],
+  ['ajv', 'JSON Schema', 'Validates JSON against schemas written for draft-07 or draft 2020-12.'],
+];
+const version = (name: string) => (pkg.dependencies as Record<string, string>)[name];
+---
+<Layout title="About Convert Data Formats" description="Who runs Convert Data Formats, how the converters work, which open-source libraries they use and why nothing you convert ever leaves your browser." crumbs={[['About']]}>
+  <div class="wrap prose">
+    <div class="page-intro">
+      <h1>About this site</h1>
+      <p class="lede">Free tools for anyone who works with data files.</p>
+    </div>
+    <h2>Your files stay on your device</h2>
+    <p>The site is made for developers, analysts, office workers and students. Every converter, editor and viewer here runs as JavaScript in your browser. When you open a file, your browser reads it from your disk and the conversion happens on your device. There is no upload step and no server that receives your data, so the tools are safe to use with private or confidential files. The <a href="/privacy">privacy page</a> lists the little that is collected about visits.</p>
+    <h2>How the tools are built</h2>
+    <p>The site is a static website: plain HTML pages with small scripts, served by Cloudflare. Each page shows a working sample before any script runs; the sample was converted by the same code when the site was built. The libraries for a format load only when a page needs them, so the Excel libraries, for example, are fetched only when you work with a workbook.</p>
+    <p>The conversion rules are written down on each converter's page, and every rule is covered by automated tests: quoted CSV fields, byte order marks, duplicate headers, YAML 1.2 booleans, XML escaping and name rules, TOML's lack of null, Excel dates, and many more.</p>
+    <h2>Open-source libraries</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Library</th><th scope="col">Used for</th><th scope="col">What it does here</th></tr></thead>
+        <tbody>{libs.map(([name, use, what]) => <tr><td><code>{name}</code> {version(name)}</td><td>{use}</td><td>{what}</td></tr>)}</tbody>
+      </table>
+    </div>
+    <p>JSON is read with the browser's own JSON parser. When it fails, a small checker written for this site finds the exact position of the error, so the message is the same in every browser.</p>
+    <h2>No ads, no accounts</h2>
+    <p>There are no ads, no accounts and no paid tier. The site counts visits with Google Analytics, which never receives the content of your files.</p>
+    <h2>More free tools</h2>
+    <p>The same owner runs <a href="https://heicconverter.net">HEIC Converter</a>, which converts HEIC photos to JPG, PNG or WEBP in your browser.</p>
+  </div>
+</Layout>

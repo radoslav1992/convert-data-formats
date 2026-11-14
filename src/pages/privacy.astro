@@ -1,0 +1,66 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { site } from '../lib/site.mjs';
+
+const analytics = Boolean(site.analyticsId);
+// Everything the site keeps in the browser's local storage: [key, what it is for, how long].
+const stored: [string, string, string][] = [
+  ['cookieConsent', 'Your Accept or Reject choice from the cookie banner (saved only if the banner is shown and you choose).', '180 days'],
+  ['dfs-json-content', 'The text in the JSON editor, so a reload does not lose it. The previous version of the editor used the same key, so text saved then still appears.', 'Until you press Clear in the editor or clear your browser data'],
+  ['cdf-xml-draft', 'The text in the XML editor, for the same reason.', 'Until you press Clear in the editor or clear your browser data'],
+  ['cdf-yaml-draft', 'The text in the YAML editor, for the same reason.', 'Until you press Clear in the editor or clear your browser data'],
+];
+const events: [string, string][] = [
+  ['conversion_done', 'The conversion (such as csv-to-json), the input size in broad bands (for example 10-100KB) and the time taken in broad bands.'],
+  ['file_open', 'The file extension (such as csv) and the tool. Not the file name.'],
+  ['sample_load', 'The tool and the name of the sample button.'],
+  ['copy_output, download_output', 'The tool, and for downloads the file extension.'],
+  ['conversion_error', 'The tool and the kind of error (such as syntax or toml-null). Not the message, which can quote your data.'],
+];
+---
+<Layout title="Privacy Policy" description="How Convert Data Formats handles your data: files never leave your browser, what Google Analytics records, and what is kept in local storage." crumbs={[['Privacy']]}>
+  <div class="wrap prose">
+    <div class="page-intro">
+      <h1>Privacy policy</h1>
+      <p class="lede">Your files never leave your browser. This page explains the little that is collected about visits and what the site keeps on your device.</p>
+      <p class="muted">Last updated November 13, 2026.</p>
+    </div>
+
+    <h2>Your files and data</h2>
+    <p>Every tool on this site runs in your browser. When you paste text or open a file, it is read and converted on your own device by the page's scripts. It is not uploaded, not sent to us or anyone else, and not stored on any server. Large files are converted in a Web Worker, which is a background thread of the same browser tab, not a server.</p>
+
+    <h2>Analytics</h2>
+    {analytics ? (
+      <Fragment>
+        <p>We use Google Analytics 4 to count visits and see which tools are used, so we can improve them. It records information such as the pages viewed, the type of device and browser, the approximate country, and the tool events listed below. It never receives the content of your files or anything you type. Google processes this data as described in <a href="https://policies.google.com/privacy">Google's privacy policy</a>.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Event</th><th scope="col">What it records</th></tr></thead>
+            <tbody>{events.map(([name, what]) => <tr><td><code>{name}</code></td><td>{what}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </Fragment>
+    ) : (
+      <p>The site does not run any analytics at the moment, so no analytics cookies are set.</p>
+    )}
+
+    <h2>Cookie choices</h2>
+    <p>The site shows no ads, and the advertising settings of Google's Consent Mode are switched off for everyone. Visitors in the European Economic Area, the United Kingdom and Switzerland see a small banner and choose Accept or Reject before any analytics cookies are used; until then, and after Reject, Google Analytics only receives cookieless pings without identifiers. Your choice is remembered for 180 days, and you can change it at any time with <strong>Cookie settings</strong> at the bottom of every page. Elsewhere, analytics cookies are on by default.</p>
+
+    <h2>What is stored in your browser</h2>
+    <p>The site keeps a few values in your browser's local storage. They stay on your device and are never sent to us.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Key</th><th scope="col">What it is for</th><th scope="col">How long</th></tr></thead>
+        <tbody>{stored.map(([key, purpose, time]) => <tr><td><code>{key}</code></td><td>{purpose}</td><td>{time}</td></tr>)}</tbody>
+      </table>
+    </div>
+    <p>The converters and the CSV viewer keep nothing: what you paste there is gone when you close or reload the page.</p>
+
+    <h2>Fonts and hosting</h2>
+    <p>The site is served by Cloudflare, which processes standard request data (such as IP addresses) to deliver and protect it. Text is set in IBM Plex fonts loaded from Google Fonts, which receives your IP address when the fonts are downloaded.</p>
+
+    <h2>Children</h2>
+    <p>The site is a general tool and does not knowingly collect personal information from anyone, including children.</p>
+  </div>
+</Layout>

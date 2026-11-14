@@ -1,0 +1,154 @@
+---
+// The converter: input pane, output pane, options and a live status line. Server-rendered with a sample that
+// was already converted at build time by the same engine, so the page works before its script runs.
+// Browser behavior: src/scripts/converter.ts.
+import '../styles/tool.css';
+import { FORMATS } from '../lib/convert/index.mjs';
+import { OPTION_DEFS, optionsFor } from '../lib/options.mjs';
+import { numbers } from '../lib/render.mjs';
+
+interface Sample { label: string; text?: string; file?: string; format?: string }
+interface Props {
+  id: string;
+  mode?: 'pair' | 'auto';
+  from: string;
+  to: string;
+  options: string[];
+  defaults: Record<string, unknown>;
+  labels?: Record<string, string>;
+  samples: Sample[];
+  input?: string;
+  inputGrid?: unknown[][];
+  inputName?: string;
+  sheets?: string[];
+  result: { text?: string; table?: { columns: string[]; rows: unknown[][] }; warnings: string[]; stats: { inputBytes: number; outputBytes: number; rows?: number; columns?: number; ms: number }; meta?: Record<string, unknown> };
+  reverse?: { slug: string; name: string };
+  detected?: string;
+}
+
+const { id, mode = 'pair', from, to, options, defaults, labels = {}, samples, input = '', inputGrid, inputName, sheets = [], result, reverse, detected } = Astro.props;
+const auto = mode === 'auto';
+const inFormat = FORMATS[from];
+const outFormat = FORMATS[to];
+const binaryIn = from === 'xlsx';
+const binaryOut = to === 'xlsx';
+const visible = new Set(auto ? optionsFor(from, to) : options);
+const allOptions = auto ? Object.keys(OPTION_DEFS) : options;
+const optionScope = auto ? Object.fromEntries(Object.keys(FORMATS).flatMap(a => Object.keys(FORMATS).filter(b => a !== b).map(b => [`${a}>${b}`, optionsFor(a, b)]))) : null;
+const outText = result.text ?? '';
+const outLines = outText.replace(/\n$/, '');
+const cell = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+const fmtBytes = (n: number) => (n < 1000 ? `${n} B` : n < 1_000_000 ? `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)} KB` : `${(n / 1_000_000).toFixed(1)} MB`);
+const plural = (n: number, word: string) => `${n.toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`;
+const inStats = [fmtBytes(result.stats.inputBytes)];
+if (result.stats.rows !== undefined) inStats.push(plural(result.stats.rows, 'row'));
+if (result.stats.columns !== undefined) inStats.push(plural(result.stats.columns, 'column'));
+if (result.meta?.delimiterName && (from === 'csv' || auto)) inStats.push(`delimiter: ${result.meta.delimiterName}`);
+const formatChoices = Object.values(FORMATS);
+const sampleData = JSON.stringify(samples);
+---
+<section class="tool" id={`tool-${id}`} data-converter data-mode={mode} data-from={from} data-to={to} data-id={id}
+  data-defaults={JSON.stringify(defaults)} data-samples={sampleData} data-scope={optionScope ? JSON.stringify(optionScope) : undefined}
+  aria-label={auto ? 'Data converter' : `${inFormat.name} to ${outFormat.name} converter`}>
+  {auto && (
+    <div class="tool-formats">
+      <label class="field">
+        <span>From</span>
+        <select data-select-from>
+          <option value="auto" selected>Detect automatically</option>
+          {formatChoices.map(f => <option value={f.id}>{f.name}</option>)}
+        </select>
+      </label>
+      <button type="button" class="btn small swap-btn" data-swap aria-label="Swap input and output formats">⇄</button>
+      <label class="field">
+        <span>To</span>
+        <select data-select-to>
+          {formatChoices.map(f => <option value={f.id} selected={f.id === to}>{f.name}</option>)}
+        </select>
+      </label>
+      <p class="detected" data-detected aria-live="polite">{detected}</p>
+    </div>
+  )}
+  <div class="panes">
+    <div class="pane pane-in">
+      <div class="pane-head">
+        <label class="pane-title" for={`in-${id}`} data-in-title>{auto ? 'Input' : `${inFormat.name} input`}</label>
+        <div class="pane-actions">
+          {samples.map((sample, i) => <button type="button" class="btn small" data-sample={i}>{sample.label}</button>)}
+          <span class="btn small file-btn">Open file<input type="file" data-file accept={auto ? '.csv,.tsv,.tab,.txt,.json,.yaml,.yml,.xml,.toml,.xlsx' : inFormat.accept} aria-label={`Open a ${auto ? 'data' : inFormat.name} file`} /></span>
+          <button type="button" class="btn small" data-clear>Clear</button>
+        </div>
+      </div>
+      <div class="drop" data-drop>
+        <div class="code-area" data-code-area hidden={binaryIn} style={`--digits:${Math.max(2, String(input.split('\n').length).length)}`}>
+          <div class="gutter-clip" aria-hidden="true"><div class="gutter">{numbers(input)}</div></div>
+          <div class="line-mark" hidden aria-hidden="true"></div>
+          <textarea id={`in-${id}`} class="code-input" data-input spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" aria-describedby={`in-stats-${id}`}>{input}</textarea>
+        </div>
+        <div class="book" data-book hidden={!binaryIn}>
+          <p class="book-name"><strong data-book-name>{inputName ?? 'No workbook open'}</strong> <span class="muted" data-book-size></span></p>
+          <p class="book-hint">Open an .xlsx file or drop it here. It is read on this device and never uploaded.</p>
+          <div class="table-preview" data-in-table tabindex="0" role="region" aria-label="Workbook preview">
+            {inputGrid && inputGrid.length > 0 && (
+              <table>
+                <tbody>{inputGrid.slice(0, 30).map((row, r) => <tr>{row.map(v => (r === 0 ? <th scope="col">{cell(v)}</th> : <td>{cell(v)}</td>))}</tr>)}</tbody>
+              </table>
+            )}
+          </div>
+        </div>
+        <p class="drop-hint" aria-hidden="true">Drop the file to open it</p>
+      </div>
+      <p class="pane-foot" id={`in-stats-${id}`} data-in-stats>{inStats.join(' · ')}</p>
+    </div>
+    <div class="pane pane-out">
+      <div class="pane-head">
+        <h2 class="pane-title" data-out-title id={`out-title-${id}`}>{outFormat.name} output</h2>
+        <div class="pane-actions">
+          <button type="button" class="btn small" data-copy hidden={binaryOut}>Copy</button>
+          <button type="button" class="btn small primary" data-download><span>Download .<span data-ext>{outFormat.ext}</span></span></button>
+          {reverse && <a class="btn small" href={`/${reverse.slug}`} data-reverse>Swap: {reverse.name}</a>}
+        </div>
+      </div>
+      <div class="code-view" data-code-view hidden={binaryOut} tabindex="0" role="region" aria-labelledby={`out-title-${id}`} style={`--digits:${Math.max(2, String(outLines.split('\n').length).length)}`}>
+        <div class="gutter" aria-hidden="true">{numbers(outLines)}</div>
+        <pre data-output><code>{outLines}</code></pre>
+      </div>
+      <div class="table-preview out-table" data-out-table hidden={!binaryOut} tabindex="0" role="region" aria-label="Preview of the sheet that will be downloaded">
+        {binaryOut && result.table && (
+          <table>
+            <thead><tr>{result.table.columns.map(c => <th scope="col">{c}</th>)}</tr></thead>
+            <tbody>{result.table.rows.slice(0, 50).map(row => <tr>{row.map(v => <td>{cell(v)}</td>)}</tr>)}</tbody>
+          </table>
+        )}
+      </div>
+      <p class="pane-foot" data-out-stats>{binaryOut ? `Workbook · ${fmtBytes(result.stats.outputBytes)} · sheet "${defaults.sheetName ?? 'Sheet1'}"` : `${fmtBytes(result.stats.outputBytes)} · ${plural(outLines.split('\n').length, 'line')}`}</p>
+    </div>
+  </div>
+  <div class="tool-status">
+    <p class="status" role="status" aria-live="polite" data-status>{result.warnings.length ? 'Converted the sample, with notes below.' : 'Converted the sample. Paste your own data, open a file or drop one on the input.'}</p>
+    <div class="messages" data-messages>
+      {result.warnings.length > 0 && <ul class="msg-list">{result.warnings.map(w => <li class="msg warn"><span class="msg-kind">Note</span> {w}</li>)}</ul>}
+    </div>
+  </div>
+  {allOptions.length > 0 && (
+    <fieldset class="options" data-options>
+      <legend>Options</legend>
+      <div class="option-grid">
+        {allOptions.map(name => {
+          const def = OPTION_DEFS[name];
+          const label = labels[name] ?? def.label;
+          const value = defaults[name] ?? def.default;
+          const fid = `opt-${id}-${name}`;
+          if (def.type === 'checkbox') return <label class="check" data-option-row={name} hidden={!visible.has(name)}><input type="checkbox" id={fid} data-option={name} checked={Boolean(value)} /> <span>{label}</span></label>;
+          if (def.type === 'select') return <label class="field" data-option-row={name} hidden={!visible.has(name)}><span>{label}</span><select id={fid} data-option={name}>{def.choices.map(([v, text]) => <option value={v} selected={String(value) === v}>{text}</option>)}</select></label>;
+          if (def.type === 'sheet') return <label class="field" data-option-row={name} hidden={!visible.has(name)}><span>{label}</span><select id={fid} data-option={name}>{(sheets.length ? sheets : ['(open a workbook)']).map((s, i) => <option value={sheets.length ? s : ''} selected={i === 0}>{s}</option>)}</select></label>;
+          return <label class="field" data-option-row={name} hidden={!visible.has(name)}><span>{label}</span><input type="text" id={fid} data-option={name} value={String(value)} placeholder={def.placeholder} spellcheck="false" autocomplete="off" /></label>;
+        })}
+      </div>
+    </fieldset>
+  )}
+</section>
+<script>
+  import { initConverters } from '../scripts/converter';
+  initConverters();
+</script>

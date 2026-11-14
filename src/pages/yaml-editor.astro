@@ -1,0 +1,86 @@
+---
+import Layout from '../layouts/Layout.astro';
+import EditorShell from '../components/EditorShell.astro';
+import CodeView from '../components/CodeView.astro';
+import Faq from '../components/Faq.astro';
+import { parseYaml } from '../lib/convert/yaml.mjs';
+import { serializeJson } from '../lib/convert/json.mjs';
+import { site } from '../lib/site.mjs';
+
+const sample = `# Deployment settings: two documents in one file
+service: shop-api
+replicas: 3
+region: no        # stays the string "no" in YAML 1.2
+defaults: &defaults
+  timeout: 30
+  retries: 2
+endpoints:
+  - path: /orders
+    <<: *defaults
+  - path: /health
+    timeout: 5
+---
+service: shop-worker
+replicas: 1
+queue: orders
+`;
+const parsed = parseYaml(sample);
+const json = serializeJson(parsed.value).text;
+const title = 'YAML Editor and Validator: Check YAML 1.2 Online';
+const description = 'Validate YAML with the line and column of each error, format it, handle several documents and see the data as JSON. Runs in your browser, nothing uploaded.';
+const faq: [string, string][] = [
+  ['How do I validate YAML?', 'Paste it or open a .yaml or .yml file. It is checked as you type against YAML 1.2. Errors show the line and column; "Go to line" moves the cursor there. The JSON pane shows exactly what a program would read.'],
+  ['Why does "no" stay a string?', 'In YAML 1.2, only true and false (and their capitalised forms) are booleans. YAML 1.1 also read yes, no, on, off, y and n as booleans, so the country code NO for Norway turned into false: the "Norway problem". This editor follows YAML 1.2. Older tools may still use 1.1 rules, so quote such values if other programs read the file.'],
+  ['Can a YAML file have several documents?', 'Yes. Documents are separated by a line with three dashes (---). The JSON view shows them as an array, one item per document, or only the first if you choose that.'],
+  ['What happens to anchors and aliases?', 'An anchor (&name) marks a value and an alias (*name) repeats it. In the JSON view every alias is replaced by a copy of the value. The merge key (<<) used in many configuration files is also resolved.'],
+  ['Does Format keep my comments?', 'Yes. Format re-indents the YAML with 2 or 4 spaces and keeps comments. It may change how some values are written, for example the style of quotes, but not what they mean.'],
+  ['Why are tabs an error?', 'YAML does not allow tabs for indentation; only spaces count. Replace the tabs at the start of the line with spaces.'],
+  ['Is my YAML uploaded?', 'No. It is checked in your browser. A copy is kept in this browser\'s local storage so a reload does not lose it; Clear removes it.'],
+];
+const structured = [{
+  '@context': 'https://schema.org', '@type': 'WebApplication', name: 'YAML Editor', url: `${site.url}/yaml-editor`, description,
+  applicationCategory: 'DeveloperApplication', operatingSystem: 'Any (runs in a web browser)', browserRequirements: 'Requires JavaScript', isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}];
+---
+<Layout title={title} description={description} section="YAML editor" crumbs={[['YAML Editor']]} structured={structured}>
+  <div class="wrap">
+    <div class="page-intro">
+      <h1>YAML Editor and Validator</h1>
+      <p class="lede">Check YAML as you type, see the line and column of any error, format it, and watch the data it describes as JSON.</p>
+      <p class="privacy-line">Runs in your browser. Your YAML is never uploaded.</p>
+    </div>
+    <EditorShell id="yaml-input" label="YAML" value={sample} badge="Valid YAML" dataAttr="data-yaml-editor" accept=".yaml,.yml,application/yaml,text/yaml,text/plain"
+      status={`Valid YAML 1.2: ${parsed.meta.documents} documents.`} stats={`${new TextEncoder().encode(sample).length} B · ${sample.split('\n').length} lines`} two>
+      <Fragment slot="tools">
+        <button type="button" class="btn small primary" data-format>Format</button>
+        <label class="field"><span>Indent</span><select data-indent><option value="2" selected>2 spaces</option><option value="4">4 spaces</option></select></label>
+        <label class="field"><span>Several documents</span><select data-multi><option value="array" selected>Make an array</option><option value="first">Use the first only</option></select></label>
+      </Fragment>
+      <div class="pane" slot="side">
+        <div class="pane-head"><h2 class="pane-title" id="json-view-title">As JSON</h2><div class="pane-actions"><button type="button" class="btn small" data-copy-json>Copy JSON</button></div></div>
+        <div data-json-view-wrap><CodeView value={json} label="The YAML data as JSON" tall /></div>
+        <p class="pane-foot" data-json-status>The data as JSON, updated as you type.</p>
+      </div>
+    </EditorShell>
+    <div class="prose content">
+      <h2>What the editor checks</h2>
+      <p>The text is parsed as YAML 1.2 (the current revision is 1.2.2) by the yaml library. A parse error stops the check and is reported with its line and column. Common causes are tabs used for indentation, a list item indented differently from its siblings, a key without a colon and space, a quote that is never closed, and the same key twice in one mapping.</p>
+      <p>The sample shows features that often trip people up: a comment, a value (no) that YAML 1.1 would have read as false, an anchor with a merge key, and two documents in one file.</p>
+      <h2>Reading the JSON view</h2>
+      <p>The right-hand pane shows the data after parsing: aliases replaced by their values, merge keys applied, comments gone, and every scalar given its type. If the JSON shows a string where you expected a number, or a number where you wanted text (such as a version "1.10" read as 1.1), add quotes in the YAML.</p>
+      <Faq items={faq} title="YAML editor: questions people ask" />
+      <h2>Related tools</h2>
+      <ul>
+        <li><a href="/yaml-to-json">YAML to JSON</a> and <a href="/json-to-yaml">JSON to YAML</a> converters</li>
+        <li><a href="/yaml-to-xml">YAML to XML</a> converter</li>
+        <li><a href="/formats/yaml">The YAML format guide</a>, including the Norway problem</li>
+      </ul>
+    </div>
+  </div>
+</Layout>
+<script>
+  import { initYamlEditor } from '../scripts/yaml-editor';
+  const root = document.querySelector<HTMLElement>('[data-yaml-editor]');
+  if (root) initYamlEditor(root);
+</script>

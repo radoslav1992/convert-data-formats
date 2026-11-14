@@ -1,0 +1,54 @@
+# Convert Data Formats
+
+> Free tools to convert, view, format and validate CSV, TSV, JSON, YAML, XML, TOML and Excel (.xlsx) files: 18 converters, a JSON editor with JSON Schema validation, XML and YAML editors, a CSV viewer and format guides. Everything runs in the browser: files are never uploaded. No accounts and no ads.
+
+- [Convert Data Formats: CSV, JSON, YAML, XML & Excel Converter](https://convertdataformats.com/): Free converters, editors and validators for CSV, TSV, JSON, YAML, XML, TOML and Excel. Everything runs in your browser; files are never uploaded.
+
+## Converters
+
+- [Data Format Converters: CSV, JSON, YAML, XML, TOML, Excel](https://convertdataformats.com/converters): Every converter on the site in one place: CSV, TSV, JSON, YAML, XML, TOML and Excel, each with its own rules and examples. Free, and nothing is uploaded.
+- [CSV to Excel Converter: CSV to XLSX, Leading Zeros Kept](https://convertdataformats.com/csv-to-excel): Convert CSV to an Excel .xlsx file in your browser. Numbers become number cells, while postcodes, IDs and long numbers stay text so Excel keeps them.
+- [CSV to JSON Converter: Free, Private, In Your Browser](https://convertdataformats.com/csv-to-json): Convert CSV to JSON in your browser. Detects the delimiter, handles quoted fields and line breaks, keeps leading zeros. Your file is never uploaded.
+- [CSV to TSV Converter: Comma-Separated to Tab-Separated](https://convertdataformats.com/csv-to-tsv): Convert CSV to tab-separated TSV in your browser. Quoted fields are unwrapped; fields with tabs or line breaks are quoted or cleaned, as you choose.
+- [CSV to XML Converter: Rows to Elements, Headers to Tags](https://convertdataformats.com/csv-to-xml): Convert CSV to XML in your browser. Each row becomes an element, headers become valid tag names, @ headers become attributes, dotted headers nest.
+- [Excel to CSV Converter: XLSX to CSV in Your Browser](https://convertdataformats.com/excel-to-csv): Convert an Excel .xlsx sheet to CSV without uploading it. Pick the sheet; dates become ISO 8601, formulas give their saved values, leading zeros stay.
+- [Excel to JSON Converter: XLSX Rows to JSON Objects](https://convertdataformats.com/excel-to-json): Convert an Excel .xlsx sheet to JSON in your browser. Each row becomes an object keyed by the header row, with typed numbers, booleans and ISO dates.
+- [JSON to CSV Converter: Flatten JSON for Excel and Sheets](https://convertdataformats.com/json-to-csv): Turn a JSON array into CSV in your browser. Nested objects become dot-path columns, arrays are joined, and a BOM option helps Excel read UTF-8.
+- [JSON to Excel Converter: JSON Array to XLSX Spreadsheet](https://convertdataformats.com/json-to-excel): Convert JSON to an Excel .xlsx file in your browser. Nested objects become columns, numbers stay numbers, strings stay text cells. No upload needed.
+- [JSON to TOML Converter: Tables, Arrays of Tables, No Null](https://convertdataformats.com/json-to-toml): Convert JSON to TOML 1.0.0 in your browser. Objects become tables and arrays of objects become [[arrays of tables]]; nulls get a clear explanation.
+- [JSON to XML Converter: Attributes, Arrays and Safe Names](https://convertdataformats.com/json-to-xml): Convert JSON to well-formed XML in your browser. Keys with @ become attributes, arrays repeat elements, and keys that are not valid XML names are fixed.
+- [JSON to YAML Converter: Clean YAML 1.2 for Config Files](https://convertdataformats.com/json-to-yaml): Convert JSON to readable YAML 1.2 in your browser. Strings that YAML would misread are quoted, including yes, no and dates for YAML 1.1 tools.
+- [TOML to JSON Converter: Validate TOML and Get JSON](https://convertdataformats.com/toml-to-json): Convert TOML to JSON in your browser, with the line and column of any TOML error. Dates become ISO strings and 64-bit integers keep every digit.
+- [TSV to CSV Converter: Tab-Separated to Comma-Separated](https://convertdataformats.com/tsv-to-csv): Convert TSV to CSV in your browser. Values are copied exactly; fields with commas, quotes or line breaks are quoted as RFC 4180 describes. No upload.
+- [XML to CSV Converter: Turn Repeated XML Records into Rows](https://convertdataformats.com/xml-to-csv): Convert XML to CSV in your browser. The repeated record element is found for you, attributes and nested elements become columns. Nothing is uploaded.
+- [XML to JSON Converter: Attributes, Repeats and Text Nodes](https://convertdataformats.com/xml-to-json): Convert XML to JSON in your browser. Attributes get an @ prefix, repeated elements become arrays, entities are decoded and DOCTYPE entities are refused.
+- [XML to YAML Converter: Readable YAML from Any XML](https://convertdataformats.com/xml-to-yaml): Convert XML to YAML in your browser. Attributes become @ keys, repeated elements become lists, and text that YAML could misread is quoted.
+- [YAML to JSON Converter: Validate and Convert YAML 1.2](https://convertdataformats.com/yaml-to-json): Convert YAML to JSON in your browser, with the line and column of any YAML error. Anchors, merge keys and documents separated by --- are handled.
+- [YAML to XML Converter: Mappings to Elements, In Your Browser](https://convertdataformats.com/yaml-to-xml): Convert YAML to well-formed XML in your browser. Mappings become elements, lists repeat them, @ keys become attributes, and anchors are expanded.
+
+## Editors and viewers
+
+- [CSV Viewer: Open CSV and TSV Files as a Sortable Table](https://convertdataformats.com/csv-viewer): View a CSV or TSV file as a table in your browser. Sort any column, see row and column counts and the detected delimiter. Files are never uploaded.
+- [JSON Editor, Validator and Formatter with JSON Schema](https://convertdataformats.com/json-editor): Edit JSON in your browser: errors with line and column, format, minify, sort keys, and JSON Schema checks for drafts 07 and 2020-12. Nothing is uploaded.
+- [XML Editor and Validator: Check Well-Formed XML](https://convertdataformats.com/xml-editor): Check that XML is well-formed, with the line and column of the first error. Format or minify XML while keeping comments and CDATA. Runs in your browser.
+- [YAML Editor and Validator: Check YAML 1.2 Online](https://convertdataformats.com/yaml-editor): Validate YAML with the line and column of each error, format it, handle several documents and see the data as JSON. Runs in your browser, nothing uploaded.
+
+## Format guides
+
+- [Data Format Guides: CSV, TSV, JSON, YAML, XML, TOML, Excel](https://convertdataformats.com/formats): Plain guides to seven data formats: the standard behind each one, its syntax and data types, the usual pitfalls, and when to choose it over the others.
+- [CSV Format Guide: RFC 4180 Rules, Quoting and Pitfalls](https://convertdataformats.com/formats/csv): What CSV is, the RFC 4180 rules for quoting, line breaks and headers, why CSV has no data types, and the encoding and Excel pitfalls to avoid.
+- [JSON Format Guide: RFC 8259 Syntax, Types and Pitfalls](https://convertdataformats.com/formats/json): What JSON is, its syntax under RFC 8259 and ECMA-404, its six data types, and the pitfalls: big numbers, duplicate keys, trailing commas and comments.
+- [TOML Format Guide: TOML 1.0.0 Tables, Types, No Null](https://convertdataformats.com/formats/toml): What TOML is, the TOML 1.0.0 syntax for keys, tables and arrays of tables, its types including four kinds of date, and why it has no null or top array.
+- [TSV Format Guide: Tab-Separated Values Explained](https://convertdataformats.com/formats/tsv): What TSV is, how it differs from CSV, the text/tab-separated-values media type, how tabs and line breaks inside fields are handled, and when to use it.
+- [Excel .xlsx Format Guide: How Workbooks Store Data](https://convertdataformats.com/formats/xlsx): What an .xlsx file is, the ECMA-376 and ISO/IEC 29500 standards behind it, how cells store numbers, text, dates and formulas, and its limits and pitfalls.
+- [XML Format Guide: Well-Formed XML 1.0, Escaping, Pitfalls](https://convertdataformats.com/formats/xml): What XML is, the XML 1.0 rules for well-formed documents, elements versus attributes, the five escapes, CDATA, namespaces and conversion pitfalls.
+- [YAML Format Guide: YAML 1.2 Syntax and the Norway Problem](https://convertdataformats.com/formats/yaml): What YAML is, its YAML 1.2.2 syntax with indentation, lists, anchors and documents, its data types, and pitfalls such as the Norway problem and tabs.
+
+## About
+
+- [About Convert Data Formats](https://convertdataformats.com/about): Who runs Convert Data Formats, how the converters work, which open-source libraries they use and why nothing you convert ever leaves your browser.
+- [Privacy Policy](https://convertdataformats.com/privacy): How Convert Data Formats handles your data: files never leave your browser, what Google Analytics records, and what is kept in local storage.
+
+## Optional
+
+- [HEIC Converter](https://heicconverter.net/): Convert HEIC photos to JPG, PNG or WEBP in your browser.

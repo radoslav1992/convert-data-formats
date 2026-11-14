@@ -1,0 +1,56 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { GROUPS, PAIRS, pairBySlug } from '../lib/tools.mjs';
+import { FORMATS } from '../lib/convert/index.mjs';
+
+const formats = Object.values(FORMATS);
+const title = 'Data Format Converters: CSV, JSON, YAML, XML, TOML, Excel';
+const description = 'Every converter on the site in one place: CSV, TSV, JSON, YAML, XML, TOML and Excel, each with its own rules and examples. Free, and nothing is uploaded.';
+const structured = [{
+  '@context': 'https://schema.org', '@type': 'ItemList', name: 'Data format converters',
+  itemListElement: PAIRS.map((pair, i) => ({ '@type': 'ListItem', position: i + 1, name: `${pair.name} converter`, url: `https://convertdataformats.com/${pair.slug}` })),
+}];
+---
+<Layout title={title} description={description} section="Converters" crumbs={[['Converters']]} structured={structured}>
+  <div class="wrap">
+    <div class="page-intro">
+      <h1>All converters</h1>
+      <p class="lede">{PAIRS.length} conversions between seven formats. Each page explains its rules, shows examples made by the converter and lists what does not survive the trip.</p>
+      <p class="privacy-line">Every converter runs in your browser. Files are never uploaded.</p>
+    </div>
+
+    <h2 id="matrix">Conversion matrix</h2>
+    <p>Find the row of the format you have and the column of the format you want. For a pair without its own page, use the <a href="/">converter on the home page</a>, which converts in any direction.</p>
+    <div class="table-wrap matrix">
+      <table>
+        <caption class="visually-hidden">Converters by input format (rows) and output format (columns)</caption>
+        <thead><tr><th scope="col">From ↓ / To →</th>{formats.map(f => <th scope="col">{f.name}</th>)}</tr></thead>
+        <tbody>
+          {formats.map(a => (
+            <tr>
+              <th scope="row">{a.name}</th>
+              {formats.map(b => {
+                const pair = pairBySlug(`${a.slug}-to-${b.slug}`);
+                return <td>{a.id === b.id ? <span class="muted" aria-label="same format">·</span> : pair ? <a href={`/${pair.slug}`} aria-label={`${pair.name} converter`}>{a.name} → {b.name}</a> : <span class="muted" aria-label="no dedicated page">–</span>}</td>;
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {GROUPS.map(group => (
+      <section class="section" aria-labelledby={`group-${group.id}`}>
+        <h2 id={`group-${group.id}`}>{group.name}</h2>
+        <p>{group.about}</p>
+        <ul class="tool-list">{group.pairs.map(pair => <li><a href={`/${pair.slug}`}><strong>{pair.name}</strong><span>{pair.blurb}</span></a></li>)}</ul>
+      </section>
+    ))}
+  </div>
+</Layout>
+<style>
+  .matrix table { min-width: 760px; }
+  .matrix td, .matrix th { text-align: center; font-size: .9rem; white-space: nowrap; }
+  .matrix tbody th { text-align: left; }
+  .matrix td a { display: inline-block; padding: 8px 0; }
+</style>
