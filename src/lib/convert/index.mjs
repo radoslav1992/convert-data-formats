@@ -4,7 +4,6 @@
 // Format modules load on demand, so a page only downloads the libraries its formats need.
 import { ConvertError } from './errors.mjs';
 import { detect } from './detect.mjs';
-import { inferValue } from './infer.mjs';
 
 export { ConvertError, detect };
 
@@ -66,11 +65,49 @@ export async function serialize(format, value, options = {}) {
   }
 }
 
-// Excel keeps 15 significant digits, so a longer number is written as text to keep every digit.
-function excelValue(text) {
-  const value = inferValue(text);
-  if (typeof value === 'number' && text.replace(/^-|\.|e.*$/gi, '').replace(/^0+/, '').length > 15) return text;
-  return value;
+// A plain decimal that Excel stores without changing what it means: no leading zeros, no plus sign, no
+// exponent, and at most 15 significant digits (Excel's precision). Trailing zeros (9.90) are allowed: the cell
+// gets a number format that shows them.
+const EXCEL_NUMBER = /^-?(?:0|[1-9]\d*)(?:\.(\d+))?$/;
+const significant = text => text.replace(/^-/, '').replace('.', '').replace(/^0+/, '').length;
+
+/**
+ * Decides per column whether CSV text becomes number cells, true/false cells or text cells, so a column never
+ * mixes numbers and text (Excel's SUM silently skips text cells). A column of numbers gets a format such as
+ * 0.00 when some values were written with trailing zeros, so 9.90 still shows as 9.90.
+ */
+function excelColumns(grid) {
+  const [, ...body] = grid;
+  const width = grid.reduce((max, r) => (r.length > max ? r.length : max), 0);
+  const kinds = [], formats = [], mixed = [];
+  for (let c = 0; c < width; c++) {
+    let kind = null, ok = true, any = false, decimals = 0, padded = false, example = null;
+    for (const row of body) {
+      const text = row[c];
+      if (text === undefined || text === '') continue;
+      any = true;
+      let k = 'text';
+      const m = EXCEL_NUMBER.exec(text);
+      if (m && significant(text) <= 15) {
+        k = 'number';
+        const fraction = m[1] ?? '';
+        if (fraction.length > decimals) decimals = fraction.length;
+        if (fraction.endsWith('0')) padded = true;
+      } else if (text === 'true' || text === 'false') k = 'boolean';
+      if (k === 'text') { ok = false; example ??= text; continue; }
+      if (kind === null) kind = k;
+      else if (kind !== k) { ok = false; example ??= text; }
+    }
+    kinds[c] = any && ok ? kind : 'text';
+    formats[c] = kinds[c] === 'number' && padded ? `0.${'0'.repeat(decimals)}` : undefined;
+    if (any && !ok && kind) mixed.push([`"${grid[0]?.[c] ?? `column ${c + 1}`}"`, example]);
+  }
+  const warnings = [];
+  if (mixed.length) {
+    const list = mixed.slice(0, 4).map(([n, ex]) => `${n} (because of ${JSON.stringify(ex)})`).join(', ');
+    warnings.push(`${mixed.length === 1 ? 'One column is' : `${mixed.length} columns are`} written as text cells so that each column keeps a single type: ${list}${mixed.length > 4 ? ', …' : ''}.`);
+  }
+  return { kinds, formats, warnings };
 }
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -94,6 +131,7 @@ export async function convert(from, to, input, options = {}) {
   if (TABULAR.has(from) && TABULAR.has(to)) {
     // Table to table: the grid is copied cell for cell; nothing is renamed or reshaped.
     let grid;
+    let formats;
     if (from === 'xlsx') {
       const result = await parse('xlsx', input, { ...options, header: false });
       grid = result.value;
@@ -105,9 +143,14 @@ export async function convert(from, to, input, options = {}) {
       grid = result.rows;
       meta = { delimiter: result.delimiter, delimiterName: { ',': 'comma', ';': 'semicolon', '\t': 'tab', '|': 'pipe' }[result.delimiter], bom: result.bom };
       warnings.push(...result.warnings);
-      if (to === 'xlsx' && options.inferTypes !== false) grid = grid.map((row, r) => (r === 0 ? row : row.map(cell => (cell === '' ? null : excelValue(cell)))));
+      if (to === 'xlsx' && options.inferTypes !== false) {
+        const typed = excelColumns(grid);
+        grid = grid.map((row, r) => (r === 0 ? row : row.map((cell, c) => (cell === '' ? null : typed.kinds[c] === 'number' ? Number(cell) : typed.kinds[c] === 'boolean' ? cell === 'true' : cell))));
+        formats = typed.formats;
+        warnings.push(...typed.warnings);
+      }
     }
-    const width = Math.max(0, ...grid.map(r => r.length));
+    const width = grid.reduce((max, r) => (r.length > max ? r.length : max), 0);
     const [head = [], ...body] = grid;
     if (from !== 'xlsx') {
       const ragged = body.map((r, i) => [i + 2, r.length]).filter(([, n]) => n !== head.length);
@@ -116,7 +159,7 @@ export async function convert(from, to, input, options = {}) {
         warnings.push(`${ragged.length} row${ragged.length === 1 ? '' : 's'} ${ragged.length === 1 ? 'does' : 'do'} not have ${head.length} field${head.length === 1 ? '' : 's'} like the header (${list}${ragged.length > 5 ? ', …' : ''}). ${ragged.length === 1 ? 'It is' : 'They are'} copied as ${ragged.length === 1 ? 'it is' : 'they are'}; missing cells are empty.`);
       }
     }
-    table = { columns: Array.from({ length: width }, (_, i) => head[i] ?? ''), rows: body.map(r => Array.from({ length: width }, (_, i) => r[i] ?? null)) };
+    table = { columns: Array.from({ length: width }, (_, i) => head[i] ?? ''), rows: body.map(r => Array.from({ length: width }, (_, i) => r[i] ?? null)), formats };
     meta.rows = body.length;
     meta.columns = width;
     const out = await serialize(to, table, options);

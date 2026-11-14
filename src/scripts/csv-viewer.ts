@@ -95,7 +95,7 @@ export function initCsvViewer(root: HTMLElement) {
       const result = await runRows(text, { delimiter: delimiter.value });
       if (id !== run) return;
       const rows = result.rows;
-      const width = Math.max(0, ...rows.map(r => r.length));
+      const width = rows.reduce((max, r) => (r.length > max ? r.length : max), 0);
       head = header.checked ? Array.from({ length: width }, (_, i) => rows[0]?.[i] ?? '') : Array.from({ length: width }, (_, i) => `Column ${i + 1}`);
       body = header.checked ? rows.slice(1) : rows;
       sortCol = -1;

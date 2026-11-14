@@ -19,6 +19,7 @@ export default {
     ['true, false, null', 'true, false and null; TRUE or True stay strings'],
     ['007, 1.50, 1e5, +44 20 7946 0958', 'Strings, because as numbers they would be written back differently'],
     ['Digits beyond 2^53, such as a 20-digit ID', 'A string, so no digit is rounded away'],
+    ['A column with one such value, as 02134 among 28013 and 75011', 'The whole column stays strings, so a key never mixes strings and numbers (a note names the column)'],
     ['An empty field', '"" (or null with "Empty cells become null")'],
     ['A repeated or empty header', 'A unique key: name_2, column_4 (and a note says so)'],
     ['A row with too few fields', 'The missing keys get "" (and a note lists the row)'],
@@ -32,7 +33,7 @@ export default {
   optionDocs: [
     { option: 'delimiter', text: 'Detect reads the first lines and picks the character that splits every line into the same number of fields: comma, semicolon, tab or pipe. Pick one by hand when a semicolon file also has many commas in its text, or when the file has a single column.', input: 'name;note\nAnn;"a, b, c"\nBruno;none\n', variants: [['Detect', {}], ['Comma (wrong here)', { delimiter: 'comma' }]] },
     { option: 'header', text: 'With the header on, the first row names the keys. Turn it off for files that start straight with data: each row then becomes an array of values.', input: '1001,Ann\n1002,Bruno\n', variants: [['On (wrong here)', {}], ['Off', { header: false }]] },
-    { option: 'inferTypes', text: 'On, a cell becomes a number, true, false or null only if writing that value back gives exactly the same text. So 3 and 9.9 become numbers, while 02134 and 9.90 stay strings. Off, every value is a string.', input: 'zip,qty,price,active\n02134,3,9.90,true\n', variants: [['On', {}], ['Off', { inferTypes: false }]] },
+    { option: 'inferTypes', text: 'On, a cell becomes a number, true, false or null only if writing that value back gives exactly the same text. So 3 and 9.9 become numbers, while 02134 and 9.90 stay strings. The choice is made for each column: if one value in a column has to stay a string, the whole column does. Off, every value is a string.', input: 'zip,qty,price,active\n02134,3,9.90,true\n', variants: [['On', {}], ['Off', { inferTypes: false }]] },
     { option: 'emptyAsNull', text: 'An empty field is an empty string by default. Turn this on when the program reading the JSON treats null as "no value" and an empty string as a real value.', input: 'name,phone\nAnn,\n', variants: [['Off', {}], ['On', { emptyAsNull: true }]] },
     { option: 'nest', text: 'Headers with dots, such as address.city, can become nested objects. This is the reverse of what the JSON to CSV converter does with nested data.', input: 'id,address.city,address.postcode\n1,Oslo,0150\n', variants: [['Off', {}], ['On', { nest: true }]] },
     { option: 'indent', text: 'Two spaces suit reading and diffs; no indent gives the smallest file for sending to an API.', input: 'id,name\n1,Ann\n', variants: [['2 spaces', {}], ['None', { indent: '0' }]] },
@@ -53,7 +54,7 @@ export default {
   faq: [
     ['How do I convert a CSV file to JSON?', 'Open the file with "Open file", drop it on the input pane, or paste the text. The JSON appears on the right as you type. Use Copy, or Download to save a .json file.'],
     ['Is my CSV uploaded anywhere?', 'No. The conversion runs in your browser with JavaScript. The file is read on your device and nothing is sent to a server, so it also works for private data.'],
-    ['Why does my postcode or ID stay a string in the JSON?', 'Because 02134 written as a number is 2134, and an ID with 20 digits would be rounded. The converter only turns text into a number when the number reads back exactly the same. Turn off "Detect numbers" to keep every value as a string.'],
+    ['Why does my postcode or ID stay a string in the JSON?', 'Because 02134 written as a number is 2134, and an ID with 20 digits would be rounded. The converter only turns text into a number when the number reads back exactly the same, and when one value in a column has to stay a string, the rest of the column does too, so the JSON never mixes "02134" and 28013 under one key. Turn off "Detect numbers" to keep every value as a string.'],
     ['Can it read CSV files that use semicolons?', 'Yes. Files from spreadsheet programs in many European locales use semicolons because the comma is the decimal separator. "Detect" picks the semicolon; values such as 4,50 stay strings so the comma is not misread.'],
     ['How do I get nested JSON from a CSV?', 'Name the columns with dots, such as address.city and address.postcode, and turn on "Nest dot-path headers". Each row then gets an "address" object.'],
     ['How big a CSV file can I convert?', 'Files over about 200 KB are converted in a background worker so the page stays responsive. A 10 MB file with about 190,000 rows converts in a few seconds on a typical laptop. The limit is your device\'s memory.'],

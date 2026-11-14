@@ -82,17 +82,27 @@ export function parseCsv(input, options = {}) {
   const header = options.header !== false;
   const infer = options.inferTypes !== false;
   const emptyAsNull = options.emptyAsNull === true;
-  const cell = text => (text === '' ? (emptyAsNull ? null : '') : infer ? inferValue(text) : text);
+  // Types are decided per column, not per cell: a column becomes numbers (or true/false) only when every
+  // non-empty value in it converts the same way. One value that must stay text, such as a zip code with a
+  // leading zero, keeps the whole column as text, so no column mixes strings and numbers.
+  const typed = [];
+  const empty = () => (emptyAsNull ? null : '');
+  const cell = (text, c) => (text === '' ? empty() : typed[c] ? inferValue(text) : text);
   const meta = { delimiter, delimiterName: DELIMITERS[delimiter] ?? delimiter, bom, lineBreak: lineBreak === '\r\n' ? 'CRLF' : lineBreak === '\r' ? 'CR' : 'LF', rows: 0, columns: 0, ragged: 0 };
   if (!header) {
-    const width = Math.max(0, ...rows.map(r => r.length));
+    const width = widest(rows, 0);
+    if (infer) decideColumnTypes(rows, width, typed, c => `column ${c + 1}`, warnings);
     meta.rows = rows.length;
     meta.columns = width;
-    return { value: rows.map(r => r.map(cell)), meta, warnings };
+    return { value: rows.map(r => r.map((text, c) => cell(text, c))), meta, warnings };
   }
   const [first = [], ...body] = rows;
   const { headers, notes } = uniqueHeaders(first);
   warnings.push(...notes);
+  if (infer) {
+    const width = widest(body, headers.length);
+    decideColumnTypes(body, width, typed, c => (c < headers.length ? `"${headers[c]}"` : `column ${c + 1}`), warnings);
+  }
   const ragged = [];
   const columns = [...headers];
   const value = body.map((row, index) => {
@@ -101,7 +111,7 @@ export function parseCsv(input, options = {}) {
     const width = Math.max(row.length, headers.length);
     for (let c = 0; c < width; c++) {
       if (c >= columns.length) columns.push(uniqueExtra(columns, c));
-      record[columns[c]] = c < row.length ? cell(row[c]) : (emptyAsNull ? null : '');
+      record[columns[c]] = c < row.length ? cell(row[c], c) : empty();
     }
     return options.nest ? nestRecord(record) : record;
   });
@@ -114,6 +124,42 @@ export function parseCsv(input, options = {}) {
   meta.ragged = ragged.length;
   meta.headers = columns;
   return { value, meta, warnings };
+}
+
+/** The longest row length, at least `min`. A loop, because spreading a huge array into Math.max overflows the stack. */
+function widest(rows, min) {
+  let width = min;
+  for (const row of rows) if (row.length > width) width = row.length;
+  return width;
+}
+
+/**
+ * Decides, for each column, whether its values are converted to numbers, booleans and null (true) or kept as
+ * text (false). A column is converted only when all its non-empty values infer to one kind; "null" fits any
+ * kind. When some values would convert and others would not, the column stays text and a warning says why.
+ */
+function decideColumnTypes(rows, width, typed, name, warnings) {
+  const mixed = [];
+  for (let c = 0; c < width; c++) {
+    let kind = null, ok = true, converted = 0, example = null;
+    for (const row of rows) {
+      const text = row[c];
+      if (text === undefined || text === '') continue;
+      const value = inferValue(text);
+      if (value === null) { converted++; continue; }
+      const k = typeof value;
+      if (k === 'string') { ok = false; example ??= text; continue; }
+      converted++;
+      if (kind === null) kind = k;
+      else if (kind !== k) { ok = false; example ??= text; }
+    }
+    typed[c] = ok;
+    if (!ok && converted > 0) mixed.push([name(c), example]);
+  }
+  if (mixed.length) {
+    const list = mixed.slice(0, 4).map(([n, ex]) => `${n} (because of ${JSON.stringify(ex)})`).join(', ');
+    warnings.push(`${mixed.length === 1 ? 'One column stays' : `${mixed.length} columns stay`} text so that each column keeps a single type: ${list}${mixed.length > 4 ? ', …' : ''}.`);
+  }
 }
 
 function uniqueExtra(columns, index) {

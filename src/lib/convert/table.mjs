@@ -96,7 +96,7 @@ export function toTable(value, options = {}) {
   // An array of arrays is already a table: the first row is the header.
   if (records.length && records.every(Array.isArray)) {
     const [head, ...body] = records;
-    const width = Math.max(...records.map(r => r.length));
+    const width = records.reduce((max, r) => (r.length > max ? r.length : max), 0);
     const { headers, notes: headerNotes } = uniqueHeaders(Array.from({ length: width }, (_, i) => cellText(head[i])));
     return { columns: headers, rows: body.map(r => Array.from({ length: width }, (_, i) => scalarCell(r[i], options))), notes: [...notes, ...headerNotes] };
   }

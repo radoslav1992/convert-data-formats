@@ -9,14 +9,14 @@ export default {
     { label: 'Customers', text: 'id,name,postcode,phone,card_ref,balance,vip,joined\n1,Ann Smith,02134,+1 617 555 0100,4111111111111111,1200.50,true,2023-11-02\n2,Bruno Díaz,28013,+34 91 555 0199,5500000000000004,-35,false,2024-01-15\n3,Zoë Martin,75011,,,0,true,2024-02-20\n' },
     { label: 'Semicolons', text: 'Artikel;Preis;Menge\nKaffee;4,50;2\nTee;3,20;1\n' },
   ],
-  rulesIntro: 'Opening a CSV directly in Excel lets Excel guess each value, and it often guesses wrong. This converter decides the cell types itself, with the round-trip rule.',
+  rulesIntro: 'Opening a CSV directly in Excel lets Excel guess each value, and it often guesses wrong. This converter decides the cell types itself, one column at a time, so a column is all numbers or all text.',
   rules: [
     ['The header row', 'Row 1, in bold and frozen so it stays visible when scrolling'],
     ['Each later row', 'One spreadsheet row'],
-    ['Numbers that read back unchanged (42, -35, 1200.5)', 'Number cells, ready for sums'],
-    ['Numbers that would change: 02134, 1200.50', 'Text cells, so no zero is lost'],
-    ['Numbers with more than 15 digits, such as 4111111111111111', 'Text cells: Excel keeps only 15 significant digits of a number'],
-    ['true and false', 'TRUE and FALSE cells'],
+    ['A column of plain numbers (42, -35, 1200.50)', 'Number cells, ready for sums; 1200.50 still shows two decimals'],
+    ['A column with any value that would change as a number: 02134, +44 20 7946 0958, 1e5', 'The whole column as text cells, so no zero is lost and SUM never skips a cell silently'],
+    ['A column with a number of more than 15 digits, such as 4111111111111111', 'The whole column as text cells: Excel keeps only 15 significant digits of a number'],
+    ['A column of true and false', 'TRUE and FALSE cells'],
     ['Dates such as 2024-01-15', 'Text cells with the date as written'],
     ['Text starting with = (=SUM(A1:A3))', 'A text cell: never a formula'],
     ['An empty field', 'An empty cell'],
@@ -24,11 +24,11 @@ export default {
   ],
   example: {
     input: 'sku,qty,price,barcode\nA-1,3,9.90,0012345678905\nA-2,12,15,4006381333931\n',
-    text: 'qty and the price 15 become numbers. 9.90 and the barcode with leading zeros stay text, so they look exactly like the CSV in Excel; 4006381333931 has no leading zero and 13 digits, so it is safely a number.',
+    text: 'qty and price become number cells. price gets the number format 0.00, so 9.90 still shows as 9.90 and 15 shows as 15.00. The barcode 0012345678905 must keep its leading zeros, so the whole barcode column is text, 4006381333931 included, and the column sorts as one kind of value.',
   },
   optionDocs: [
     { option: 'delimiter', text: 'Detect works for comma, semicolon, tab and pipe files. With a semicolon file from a German or French spreadsheet, the decimal commas in values stay inside their cells.', input: 'Artikel;Preis\nKaffee;4,50\n', variants: [['Detect', {}], ['Comma (wrong here)', { delimiter: 'comma' }]] },
-    { option: 'inferTypes', text: 'On, values that are exact numbers or true/false get number and boolean cells, so Excel can sum and sort them. Off, every cell is text, which is safest for files full of codes and IDs.', input: 'code,amount\n0042,17\n', variants: [['On', {}], ['Off', { inferTypes: false }]] },
+    { option: 'inferTypes', text: 'On, a column whose values are all plain numbers, or all true and false, gets number or boolean cells, so Excel can sum and sort it; a column with a code that would change as a number, such as 0042, stays text. Off, every cell is text, which is safest for files full of codes and IDs.', input: 'code,amount\n0042,17\n', variants: [['On', {}], ['Off', { inferTypes: false }]] },
     { option: 'sheetName', text: 'The name on the sheet tab. Excel limits it to 31 characters and does not allow : \\ / ? * [ or ], so those are replaced.', input: 'a\n1\n', variants: [['Sheet1', {}], ['"Q1/2024"', { sheetName: 'Q1/2024' }]] },
   ],
   errors: [
@@ -45,7 +45,7 @@ export default {
   faq: [
     ['How do I convert CSV to Excel?', 'Paste the CSV or open the file, check the preview of the sheet on the right, and press Download .xlsx.'],
     ['Why not just open the CSV in Excel?', 'Excel then decides every value itself: it removes leading zeros, rounds long numbers to 15 digits and turns some codes into dates. This converter writes those values as text cells, so they stay exactly as in the CSV.'],
-    ['Will my numbers be numbers in Excel?', 'Yes, when they read back exactly: 42, -35 and 1200.5 become number cells you can sum. 1200.50 stays text because as a number it would lose its last zero; switch it with Excel\'s "Convert to Number" if you prefer.'],
+    ['Will my numbers be numbers in Excel?', 'Yes, when every value in the column is a plain number: 42, -35 and 1200.50 become number cells you can sum, and 1200.50 keeps showing two decimals. If one value in a column would change as a number, such as a postcode with a leading zero, the whole column is written as text, so a sum never leaves out some of its cells without telling you.'],
     ['Does it work with semicolon-separated CSV?', 'Yes. The delimiter is detected, and values such as 4,50 are kept as text so the decimal comma is not misread.'],
     ['Is the file uploaded to make the .xlsx?', 'No. The workbook is built in your browser and saved straight to your device.'],
     ['Can I choose the sheet name?', 'Yes, in the options. Characters Excel does not allow in sheet names are replaced with spaces.'],

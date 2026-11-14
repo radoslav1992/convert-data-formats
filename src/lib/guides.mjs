@@ -111,7 +111,7 @@ export const GUIDES = [
       'Trailing commas, comments and single quotes are accepted by JavaScript and by some config readers, but they are not JSON. Strict parsers reject the file.',
       'There is no date type. Dates travel as strings, usually ISO 8601 (2024-03-15T13:45:00Z), and both sides must agree on that.',
       'Object key order is not part of the data model. Most tools keep it, but do not rely on it.',
-      'JSON Lines (one JSON value per line, used for logs) is a different convention: a JSON parser reads only the first line of such a file correctly.',
+      'JSON Lines (one JSON value per line, used for logs) is a different convention: a strict JSON parser rejects such a file, because it holds more than one value.',
     ],
     whenToUse: [
       'Use JSON for web APIs, for data that programs exchange, and for nested data of any shape. Every programming language has a parser.',

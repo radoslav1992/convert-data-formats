@@ -75,7 +75,7 @@ export async function parseXlsx(input, options = {}) {
     warnings.push(`The sheet "${sheet.name}" is empty.`);
     return { value: [], meta, warnings };
   }
-  const width = Math.max(...rows.map(r => r.length));
+  const width = rows.reduce((max, r) => (r.length > max ? r.length : max), 0);
   if (options.header === false) {
     meta.rows = rows.length;
     meta.columns = width;
@@ -114,17 +114,21 @@ export async function serializeXlsx(value, options = {}) {
   if (table.rows.length + 1 > MAX_ROWS) throw new ConvertError(`Excel sheets hold at most ${MAX_ROWS.toLocaleString('en-US')} rows, and this data has ${(table.rows.length + 1).toLocaleString('en-US')} with the header. Split it into smaller files first.`, { code: 'xlsx-rows', format: 'xlsx' });
   if (table.columns.length > MAX_COLUMNS) throw new ConvertError(`Excel sheets hold at most ${MAX_COLUMNS.toLocaleString('en-US')} columns, and this data has ${table.columns.length.toLocaleString('en-US')}.`, { code: 'xlsx-columns', format: 'xlsx' });
   let cut = 0;
-  const cell = v => {
+  const formats = table.formats ?? [];
+  const cell = (v, i) => {
     if (v === null || v === undefined || v === '') return null;
     // Excel keeps 15 significant digits; a longer number is written as text so no digit changes.
-    if (typeof v === 'number') return Number.isFinite(v) && String(v).replace(/^-|\.|e.*$/gi, '').replace(/^0+/, '').length <= 15 ? v : String(v);
+    if (typeof v === 'number') {
+      if (!(Number.isFinite(v) && String(v).replace(/^-|\.|e.*$/gi, '').replace(/^0+/, '').length <= 15)) return String(v);
+      return formats[i] ? { value: v, format: formats[i] } : v;
+    }
     if (typeof v === 'boolean') return v;
     let text = typeof v === 'bigint' ? v.toString() : String(v);
     if (text.length > MAX_CELL) { text = text.slice(0, MAX_CELL); cut++; }
     return text;
   };
   const header = table.columns.map(c => ({ value: String(c).slice(0, MAX_CELL), fontWeight: 'bold' }));
-  const data = [header, ...table.rows.map(row => row.map(cell))];
+  const data = [header, ...table.rows.map(row => row.map((v, i) => cell(v, i)))];
   const widths = table.columns.map((c, i) => {
     let w = String(c).length;
     for (let r = 0; r < Math.min(table.rows.length, 200); r++) w = Math.max(w, String(table.rows[r][i] ?? '').length);

@@ -142,3 +142,44 @@ test('handles a 10 MB CSV', () => {
   assert.ok(value.length > 180_000);
   assert.ok(performance.now() - start < 20_000);
 });
+
+// Large inputs must not hit the call-stack limit: no code path may spread one argument per row.
+const bigLine = '1,"Smith, Ann",ann@example.com,2024-03-15,129.99,true\n';
+const bigCsv = 'id,name,email,date,amount,active\n' + bigLine.repeat(Math.ceil(10_000_000 / bigLine.length));
+
+test('parses a 10 MB CSV without a header row', () => {
+  const { value, meta } = parseCsv(bigCsv, { header: false });
+  assert.ok(value.length > 180_000);
+  assert.equal(meta.columns, 6);
+});
+
+test('converts a 10 MB CSV to TSV (table to table)', async () => {
+  const { convert } = await import('../src/lib/convert/index.mjs');
+  const { text } = await convert('csv', 'tsv', bigCsv);
+  assert.ok(text.startsWith('id\tname\temail'));
+  assert.equal(text.split('\n').filter(Boolean).length, bigCsv.split('\n').filter(Boolean).length);
+});
+
+test('turns a 180,000-row array of arrays into CSV', () => {
+  const rows = [['id', 'name'], ...Array.from({ length: 180_000 }, (_, i) => [i, 'Ann'])];
+  const out = serializeCsv(rows);
+  const text = typeof out === 'string' ? out : out.text;
+  assert.equal(text.split(/\r?\n/).filter(Boolean).length, 180_001);
+});
+
+test('types are decided per column: one value that must stay text keeps the column as text', () => {
+  const { value, warnings } = parseCsv('zip,total,paid\n02134,129.99,true\n28013,54.5,false\n');
+  assert.deepEqual(value, [{ zip: '02134', total: 129.99, paid: true }, { zip: '28013', total: 54.5, paid: false }]);
+  assert.match(warnings.join(' '), /"zip" \(because of "02134"\)/);
+});
+
+test('a column of numbers with null and empty cells stays numeric', () => {
+  const { value, warnings } = parseCsv('k,n\na,1\nb,null\nc,\nd,2.5\n');
+  assert.deepEqual(value.map(r => r.n), [1, null, '', 2.5]);
+  assert.equal(warnings.length, 0);
+});
+
+test('a column mixing numbers and true/false stays text', () => {
+  const { value } = parseCsv('v\n1\ntrue\n');
+  assert.deepEqual(value.map(r => r.v), ['1', 'true']);
+});

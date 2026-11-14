@@ -29,7 +29,7 @@
 ## Editors and viewers
 
 - [CSV Viewer: Open CSV and TSV Files as a Sortable Table](https://convertdataformats.com/csv-viewer): View a CSV or TSV file as a table in your browser. Sort any column, see row and column counts and the detected delimiter. Files are never uploaded.
-- [JSON Editor, Validator and Formatter with JSON Schema](https://convertdataformats.com/json-editor): Edit JSON in your browser: errors with line and column, format, minify, sort keys, and JSON Schema validation for drafts 07 and 2020-12. Nothing is uploaded.
+- [JSON Editor, Validator and Formatter with JSON Schema](https://convertdataformats.com/json-editor): Edit JSON in your browser: errors with line and column, format, minify, sort keys, and JSON Schema checks for drafts 07 and 2020-12. Nothing is uploaded.
 - [XML Editor and Validator: Check Well-Formed XML](https://convertdataformats.com/xml-editor): Check that XML is well-formed, with the line and column of the first error. Format or minify XML while keeping comments and CDATA. Runs in your browser.
 - [YAML Editor and Validator: Check YAML 1.2 Online](https://convertdataformats.com/yaml-editor): Validate YAML with the line and column of each error, format it, handle several documents and see the data as JSON. Runs in your browser, nothing uploaded.
 
